@@ -23,4 +23,19 @@ jobs:
       - name: Test with pytest
         run: |
           pytest
+      - name: Build
+        run: python setup.py sdist bdist_wheel
+      - name: Set version in env
+        run: echo "TAG_VERSION=`python setup.py --version`" >> $GITHUB_ENV
+      - uses: rickstaa/action-create-tag@v1
+        with:
+          tag: "${{env.TAG_VERSION}}"
+          message: "Latest release"
+      - name: Publish package
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+          skip_existing: true
       
