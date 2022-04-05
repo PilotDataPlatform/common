@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name='common',
+    name='pilot-platform-common',
     version='0.0.20',
     author='Indoc Research',
     author_email='etaylor@indocresearch.org',
@@ -9,7 +9,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     classifiers=[
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GNU Affero General Public License v3',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
