@@ -1,0 +1,5 @@
+coverage==5.3
+pytest==6.2.5
+pytest-env==0.6.2
+pytest-httpx
+python-dotenv==0.19.1
