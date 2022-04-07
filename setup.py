@@ -15,6 +15,7 @@ setuptools.setup(
     python_requires='>=3.6',
     install_requires=[
         'python-dotenv==0.19.1',
+        'httpx==0.22.0',
     ],
     include_package_data=True,
     package_data={
