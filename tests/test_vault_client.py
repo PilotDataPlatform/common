@@ -1,7 +1,4 @@
-import os
-
 import pytest
-from dotenv import load_dotenv
 from pytest_httpx import HTTPXMock
 
 from common.vault.vault_client import VaultClient
@@ -28,9 +25,7 @@ class TestVaultClient:
 
     def test_03_get_from_vault_connect_error(self):
         with pytest.raises(VaultClientException, match='Failed to connect to Vault'):
-            invalid_client = VaultClient(
-                'https://vault.com/invalid-url', '', 'mock_token'
-            )
+            invalid_client = VaultClient('https://vault.com/invalid-url', '', 'mock_token')
             invalid_client.get_from_vault('service_notification')
 
     def test_04_get_from_vault_response_error(self, httpx_mock: HTTPXMock):
