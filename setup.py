@@ -16,6 +16,7 @@ setuptools.setup(
     install_requires=[
         'python-dotenv==0.19.1',
         'httpx==0.22.0',
+        'redis>=4.0.0<5.0.0'
     ],
     include_package_data=True,
     package_data={
