@@ -16,12 +16,18 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.7
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v1
+        id: cache
+        with:
+          path: ~/.virtualenvs
+          key: poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            poetry-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r common/requirements.txt
-          pip install -r tests/test_requirements.txt
-          pip install twine pytest wheel
+        run: poetry install
       - name: Test with pytest
         run: |
           pytest

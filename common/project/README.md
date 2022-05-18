@@ -4,11 +4,38 @@ A layer to simplify calling project APIs
 
 ## Usage
 
+### Handle Exceptions
+
+Setup error handles in flask/fastapi to allow for automically handling of the exception. Alternatively, you can catch the exceptions manually in your code.
+
+Flask
+```python
+from common import ProjectException
+
+@app.errorhandler(ProjectException)
+def http_exception_handler(exc: ProjectException):
+    return exc.content, exc.status_code
+```
+
+FastAPI
+```python
+from common import ProjectException
+
+@app.exception_handler(ProjectException)
+def http_exception_handler(request: Request, exc: ProjectException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.content,
+    )
+```
+
 ### Initialize client
+
+There are two client, ProjectClient and ProjectClientSync. For async support use ProjectClient. Both clients should be identical other then async support.
 
 REDIS_URL should be in the format `redis://:<REDIS_PASS>@<REDIS_HOST>:<REDIS_PORT>`
 
-```
+```python
 from common import ProjectClient
 
 project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
@@ -16,7 +43,7 @@ project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_UR
 
 ### Get by code or id
 
-```
+```python
 from common import ProjectClient
 
 
@@ -30,7 +57,7 @@ print(project.json()) # converts the project to a dict
 
 ### Search for project
 
-```
+```python
 from common import ProjectClient
 
 
@@ -49,7 +76,7 @@ for project in results["results"]:
 
 ### Create project
 
-```
+```python
 from common import ProjectClient
 
 
@@ -67,7 +94,7 @@ project = project_client.create(
 
 ### Update project
 
-```
+```python
 from common import ProjectClient
 
 

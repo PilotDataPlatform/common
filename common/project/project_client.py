@@ -13,13 +13,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpx
-import redis
+import asyncio
 import json
-from http.client import HTTPException
-from .project_exceptions import ProjectNotFoundException, ProjectException
+
+import aioredis
+import httpx
+
+from .project_exceptions import ProjectException, ProjectNotFoundException
 
 CACHE_PREFIX = "project_client-"
+CACHE_EXPIRY = 300
 
 
 class ProjectObject(object):
@@ -44,13 +47,22 @@ class ProjectObject(object):
     def __repr__(self):
         return f"<Project {self.code}>"
 
-    def json(self):
+    async def json(self):
         result = {}
         for attr in self.attributes:
             result[attr] = getattr(self, attr, "")
         return result
 
-    def update(self, code=None, name=None, description=None, image_url=None, tags=None, system_tags=None, is_discoverable=None):
+    async def update(
+        self,
+        code=None,
+        name=None,
+        description=None,
+        image_url=None,
+        tags=None,
+        system_tags=None,
+        is_discoverable=None
+    ):
         data = {
             "code": code,
             "name": name,
@@ -63,36 +75,46 @@ class ProjectObject(object):
         # remove blank items
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = httpx.patch(self.project_client.base_url + f"/v1/projects/{self.id}", json=data)
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(self.project_client.base_url + f"/v1/projects/{self.id}", json=data)
         if response.status_code == 404:
             raise ProjectNotFoundException
         elif response.status_code != 200:
             raise ProjectException(status_code=response.status_code, error_msg=response.json())
 
-        self.project_client.redis.delete(CACHE_PREFIX +  self.id)
-        self.project_client.redis.delete(CACHE_PREFIX +  self.code)
+        await self.project_client.redis.delete(CACHE_PREFIX + self.id)
+        await self.project_client.redis.delete(CACHE_PREFIX + self.code)
         for attr in self.attributes:
             setattr(self, attr, response.json().get(attr))
         return self
 
 
 class ProjectClient(object):
-    def __init__(self, project_url, redis_url, enable_cache=True):
+    def __init__(self, project_url, redis_url, enable_cache=True, is_async=True):
         self.base_url = project_url
-        self.redis = redis.from_url(redis_url)
         self.enable_cache = enable_cache
+        self.redis_url = redis_url
+        if is_async:
+            self.project_object = ProjectObject
+            self.connect_redis()
+        else:
+            self.project_object = ProjectObjectSync
 
-    def search(self, query):
+    async def connect_redis(self):
+        self.redis = await aioredis.from_url(self.redis_url)
+
+    async def search(self, query):
         result = {}
-        response = httpx.get(self.base_url + "/v1/projects/", params=query)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(self.base_url + "/v1/projects/", params=query)
         if response.status_code == 404:
             raise ProjectNotFoundException
         elif response.status_code != 200:
             raise ProjectException(status_code=response.status_code, error_msg=response.json())
-        result["result"] = [ProjectObject(item, self) for item in response.json()["result"]]
+        result["result"] = [self.project_object(item, self) for item in response.json()["result"]]
         return result
 
-    def get(self, id="", code=""):
+    async def get(self, id="", code=""):
         project_id = ""
         if id:
             project_id = id
@@ -100,20 +122,21 @@ class ProjectClient(object):
             project_id = code
 
         project_key = CACHE_PREFIX + project_id
-        if self.enable_cache and self.redis.exists(project_key):
-            return ProjectObject(json.loads(self.redis.get(project_key)), self)
+        if self.enable_cache and await self.redis.exists(project_key):
+            return self.project_object(json.loads(await self.redis.get(project_key)), self)
 
-        response = httpx.get(self.base_url + f"/v1/projects/{project_id}")
+        async with httpx.AsyncClient() as client:
+            response = await client.get(self.base_url + f"/v1/projects/{project_id}")
         if response.status_code == 404:
             raise ProjectNotFoundException
         elif response.status_code != 200:
             raise ProjectException(status_code=response.status_code, error_msg=response.json())
 
         if self.enable_cache:
-            self.redis.setex(project_key, 30, json.dumps(response.json()))
-        return ProjectObject(response.json(), self)
+            await self.redis.setex(project_key, CACHE_EXPIRY, json.dumps(response.json()))
+        return self.project_object(response.json(), self)
 
-    def create(self, code, name, description, image_url=None, tags=[], system_tags=[], is_discoverable=True):
+    async def create(self, code, name, description, image_url=None, tags=[], system_tags=[], is_discoverable=True):
         data = {
             "code": code,
             "name": name,
@@ -126,7 +149,38 @@ class ProjectClient(object):
         # remove blank items
         data = {k: v for k, v in data.items() if v is not None}
 
-        response = httpx.post(self.base_url + f"/v1/projects/", json=data)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.base_url + "/v1/projects/", json=data)
         if response.status_code != 200:
             raise ProjectException(status_code=response.status_code, error_msg=response.json())
-        return ProjectObject(response.json(), self)
+        return self.project_object(response.json(), self)
+
+
+class ProjectObjectSync(ProjectObject):
+    def __init__(self, *args, **kwargs):
+        self.project_object = ProjectObject(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+    def json(self, *args, **kwargs):
+        return asyncio.run(self.project_object.json(*args, **kwargs))
+
+    def update(self, *args, **kwargs):
+        asyncio.run(self.project_object.update(*args, **kwargs))
+        for attr in self.attributes:
+            setattr(self, attr, getattr(self.project_object, attr))
+        return self
+
+
+class ProjectClientSync(object):
+    def __init__(self, project_url, redis_url, enable_cache=True):
+        self.project_client = ProjectClient(project_url, redis_url, enable_cache=enable_cache, is_async=False)
+        asyncio.run(self.project_client.connect_redis())
+
+    def get(self, *args, **kwargs):
+        return asyncio.run(self.project_client.get(*args, **kwargs))
+
+    def search(self, *args, **kwargs):
+        return asyncio.run(self.project_client.update(*args, **kwargs))
+
+    def create(self, *args, **kwargs):
+        return asyncio.run(self.project_client.create(*args, **kwargs))

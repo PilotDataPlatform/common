@@ -1,5 +1,6 @@
-import pytest
 from uuid import uuid4
+
+import pytest
 from testcontainers.redis import RedisContainer
 
 PROJECT_URL  = "http://project"

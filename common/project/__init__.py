@@ -13,5 +13,5 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .project_client import ProjectClient
+from .project_client import ProjectClient, ProjectClientSync
 from .project_exceptions import ProjectException, ProjectNotFoundException

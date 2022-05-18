@@ -1,6 +1,8 @@
 import pytest
-from tests.conftest import PROJECT_URL, PROJECT_ID, PROJECT_DATA
-from common import ProjectClient, ProjectException, ProjectNotFoundException
+
+from common import ProjectClientSync as ProjectClient
+from common import ProjectException, ProjectNotFoundException
+from tests.conftest import PROJECT_DATA, PROJECT_ID, PROJECT_URL
 
 
 def test_get_by_code_200(redis, mock_get_by_code):
@@ -20,24 +22,25 @@ def test_get_by_id_200(redis, mock_get_by_id):
 def test_get_by_id_404(redis, httpx_mock):
     httpx_mock.add_response(
         method="GET",
-        url=PROJECT_URL + f"/v1/projects/notfound",
+        url=PROJECT_URL + "/v1/projects/notfound",
         json={},
         status_code=404,
     )
     project_client = ProjectClient(PROJECT_URL, redis.url)
     with pytest.raises(ProjectNotFoundException):
-        project = project_client.get(code="notfound")
+        project_client.get(code="notfound")
+
 
 def test_get_by_id_500(redis, httpx_mock):
     httpx_mock.add_response(
         method="GET",
-        url=PROJECT_URL + f"/v1/projects/error",
+        url=PROJECT_URL + "/v1/projects/error",
         json={},
         status_code=500,
     )
     project_client = ProjectClient(PROJECT_URL, redis.url)
     with pytest.raises(ProjectException):
-        project = project_client.get(code="error")
+        project_client.get(code="error")
 
 
 def test_project_update_200(redis, mock_get_by_code, httpx_mock):
@@ -79,7 +82,7 @@ def test_project_update_500(redis, mock_get_by_code, httpx_mock):
 def test_create_project_200(redis, httpx_mock):
     httpx_mock.add_response(
         method="POST",
-        url=PROJECT_URL + f"/v1/projects/",
+        url=PROJECT_URL + "/v1/projects/",
         json=PROJECT_DATA,
         status_code=200,
     )
@@ -98,14 +101,14 @@ def test_create_project_200(redis, httpx_mock):
 def test_create_project_500(redis, httpx_mock):
     httpx_mock.add_response(
         method="POST",
-        url=PROJECT_URL + f"/v1/projects/",
+        url=PROJECT_URL + "/v1/projects/",
         json={},
         status_code=500,
     )
 
     project_client = ProjectClient(PROJECT_URL, redis.url, enable_cache=False)
     with pytest.raises(ProjectException):
-        project = project_client.create(
+        project_client.create(
             name=PROJECT_DATA["name"],
             code=PROJECT_DATA["code"],
             description=PROJECT_DATA["description"],
