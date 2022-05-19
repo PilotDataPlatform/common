@@ -63,6 +63,7 @@ class ProjectObject(object):
         system_tags=None,
         is_discoverable=None
     ):
+        await self.project_client.connect_redis()
         data = {
             "code": code,
             "name": name,
@@ -96,7 +97,6 @@ class ProjectClient(object):
         self.redis_url = redis_url
         if is_async:
             self.project_object = ProjectObject
-            self.connect_redis()
         else:
             self.project_object = ProjectObjectSync
 
@@ -115,6 +115,7 @@ class ProjectClient(object):
         return result
 
     async def get(self, id="", code=""):
+        await self.connect_redis()
         project_id = ""
         if id:
             project_id = id
