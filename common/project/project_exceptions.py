@@ -28,6 +28,9 @@ class ProjectException(Exception):
             "result": "",
         }
 
+    def __str__(self):
+        return self.error_msg
+
 class ProjectNotFoundException(ProjectException):
     status_code = 404
     error_msg = "Project not found"
