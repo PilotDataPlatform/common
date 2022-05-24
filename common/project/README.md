@@ -29,11 +29,21 @@ def http_exception_handler(request: Request, exc: ProjectException):
     )
 ```
 
+Manually
+```python
+from common import ProjectException
+
+try:
+    <code>
+except ProjectException as e:
+    <code>
+```
+
 ### Initialize client
 
 There are two client, ProjectClient and ProjectClientSync. For async support use ProjectClient. Both clients should be identical other then async support.
 
-REDIS_URL should be in the format `redis://:<REDIS_PASS>@<REDIS_HOST>:<REDIS_PORT>`
+REDIS_URL should be in the format `redis://<REDIS_USER>:<REDIS_PASS>@<REDIS_HOST>:<REDIS_PORT>` (`<REDIS_USER>` is the default user in this case)
 
 ```python
 from common import ProjectClient
@@ -48,8 +58,8 @@ from common import ProjectClient
 
 
 project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
-project = project_client.get(code='indoctestproject')
-project = project_client.get(code='6fc2201b-272a-4e1e-8fb8-a21ca84208d7')
+project = await project_client.get(code='indoctestproject')
+project = await project_client.get(id='6fc2201b-272a-4e1e-8fb8-a21ca84208d7')
 
 print(project.name)
 print(project.json()) # converts the project to a dict
@@ -62,7 +72,7 @@ from common import ProjectClient
 
 
 project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
-results = project_client.search(
+results = await project_client.search(
     page=1,
     page_size=10,
     description='test'
@@ -81,7 +91,7 @@ from common import ProjectClient
 
 
 project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
-project = project_client.create(
+project = await project_client.create(
     code="gregtestnewproject3",
     name="Greg Test New Project",
     description="Greg is testing new projects",
@@ -99,7 +109,7 @@ from common import ProjectClient
 
 
 project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
-project = project.get('indoctestproject')
-project.update(description="Changed3")
+project = await project.get('indoctestproject')
+await project.update(description="Changed3")
 print(project.name)
 ```
