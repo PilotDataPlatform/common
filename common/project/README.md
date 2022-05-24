@@ -72,7 +72,7 @@ from common import ProjectClient
 
 
 project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
-results = project_client.search(
+results = await project_client.search(
     page=1,
     page_size=10,
     description='test'
