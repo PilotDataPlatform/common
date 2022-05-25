@@ -78,6 +78,22 @@ results = await project_client.search(
     description='test'
 )
 
+# Sorting
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    order_by='created_at', # name, code also supported
+    order_type='asc', # or desc
+)
+
+# Create time range
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    created_at_start=1653494559, # or datetime in ISO format
+    created_at_start=1653494559,
+)
+
 # Tags format
 results = await project_client.search(
     page=1,
