@@ -77,6 +77,21 @@ results = await project_client.search(
     page_size=10,
     description='test'
 )
+
+# Tags format
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    tags_all='test1,test2'
+)
+
+# Batch search by code
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    code_any='code1,code2'
+)
+
 print(results["page"])
 print(results["page_size"])
 for project in results["results"]:

@@ -103,14 +103,45 @@ class ProjectClient(object):
     async def connect_redis(self):
         self.redis = await aioredis.from_url(self.redis_url)
 
-    async def search(self, query):
-        result = {}
+    async def search(
+        self,
+        page=None,
+        page_size=None,
+        order_by=None,
+        order_type=None,
+        name=None,
+        code=None,
+        description=None,
+        is_discoverable=None,
+        tags_all=None,
+        code_any=None,
+        created_at_start=None,
+        created_at_end=None,
+    ):
+        data = {
+            "page": page,
+            "page_size": page_size,
+            "sort_by": order_by,
+            "sort_order": order_type,
+            "name": name,
+            "code": code,
+            "description": description,
+            "is_discoverable": is_discoverable,
+            "tags_all": tags_all,
+            "code_any": code_any,
+            "created_at_start": created_at_start,
+            "created_at_end": created_at_end,
+        }
+        # remove blank items
+        data = {k: v for k, v in data.items() if v is not None}
+
         async with httpx.AsyncClient() as client:
-            response = await client.get(self.base_url + "/v1/projects/", params=query)
+            response = await client.get(self.base_url + "/v1/projects/", params=data)
         if response.status_code == 404:
             raise ProjectNotFoundException
         elif response.status_code != 200:
             raise ProjectException(status_code=response.status_code, error_msg=response.json())
+        result = response.json()
         result["result"] = [self.project_object(item, self) for item in response.json()["result"]]
         return result
 
@@ -181,7 +212,7 @@ class ProjectClientSync(object):
         return asyncio.run(self.project_client.get(*args, **kwargs))
 
     def search(self, *args, **kwargs):
-        return asyncio.run(self.project_client.update(*args, **kwargs))
+        return asyncio.run(self.project_client.search(*args, **kwargs))
 
     def create(self, *args, **kwargs):
         return asyncio.run(self.project_client.create(*args, **kwargs))
