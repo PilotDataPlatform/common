@@ -115,3 +115,28 @@ def test_create_project_500(redis, httpx_mock):
             tags=PROJECT_DATA["tags"],
             system_tags=PROJECT_DATA["system_tags"],
         )
+
+
+def test_project_search_200(redis, httpx_mock):
+    result = {
+        "result": [PROJECT_DATA],
+        "total": 1,
+    }
+    url = PROJECT_URL + ("/v1/projects/?name=Unit+Test+Project&code=unittestproject&description=Test"
+                         "&tags_all=tag1&tags_all=tag2")
+    httpx_mock.add_response(
+        method="GET",
+        url=url,
+        json=result,
+        status_code=200,
+    )
+
+    project_client = ProjectClient(PROJECT_URL, redis.url, enable_cache=False)
+    result = project_client.search(
+        name=PROJECT_DATA["name"],
+        code=PROJECT_DATA["code"],
+        description=PROJECT_DATA["description"],
+        tags_all=PROJECT_DATA["tags"],
+    )
+    assert result["result"][0].name == PROJECT_DATA["name"]
+    assert result["total"] == 1

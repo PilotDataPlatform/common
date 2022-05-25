@@ -77,6 +77,37 @@ results = await project_client.search(
     page_size=10,
     description='test'
 )
+
+# Sorting
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    order_by='created_at', # name, code also supported
+    order_type='asc', # or desc
+)
+
+# Create time range
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    created_at_start=1653494559, # or datetime in ISO format
+    created_at_start=1653494559,
+)
+
+# Tags format
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    tags_all='test1,test2'
+)
+
+# Batch search by code
+results = await project_client.search(
+    page=1,
+    page_size=10,
+    code_any='code1,code2'
+)
+
 print(results["page"])
 print(results["page_size"])
 for project in results["results"]:
