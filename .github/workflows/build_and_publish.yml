@@ -20,11 +20,11 @@ jobs:
         run: poetry install
       - name: Test with pytest
         run: |
-          pytest
+          poetry run pytest
       - name: Build
-        run: python setup.py sdist bdist_wheel
+        run:  poetry run python setup.py sdist bdist_wheel
       - name: Set version in env
-        run: echo "TAG_VERSION=`python setup.py --version`" >> $GITHUB_ENV
+        run: echo "TAG_VERSION=`poetry run python setup.py --version`" >> $GITHUB_ENV
       - uses: rickstaa/action-create-tag@v1
         with:
           tag: "${{env.TAG_VERSION}}"

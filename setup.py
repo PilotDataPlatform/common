@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name='pilot-platform-common',
-    version='0.0.27-dev',
+    version='0.0.28',
     author='Indoc Research',
     author_email='etaylor@indocresearch.org',
     description='Generates entity ID and connects with Vault (secret engine) to retrieve credentials',
