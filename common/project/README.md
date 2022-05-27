@@ -144,3 +144,14 @@ project = await project.get('indoctestproject')
 await project.update(description="Changed3")
 print(project.name)
 ```
+
+### Upload logo
+
+```python
+from common import ProjectClient
+
+
+project_client = ProjectClient(ConfigClass.PROJECT_SERVICE, ConfigClass.REDIS_URL)
+project = await project.get('indoctestproject')
+project.upload_logo("<base64 encoded image data>")
+```

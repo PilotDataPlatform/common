@@ -89,6 +89,18 @@ class ProjectObject(object):
             setattr(self, attr, response.json().get(attr))
         return self
 
+    async def upload_logo(self, image_data):
+        data = {
+            "base64": image_data
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.post(self.project_client.base_url + f"/v1/projects/{self.id}/logo", json=data)
+        if response.status_code == 404:
+            raise ProjectNotFoundException
+        elif response.status_code != 200:
+            raise ProjectException(status_code=response.status_code, error_msg=response.json())
+        return self
+
 
 class ProjectClient(object):
     def __init__(self, project_url, redis_url, enable_cache=True, is_async=True):
@@ -198,6 +210,12 @@ class ProjectObjectSync(ProjectObject):
 
     def update(self, *args, **kwargs):
         asyncio.run(self.project_object.update(*args, **kwargs))
+        for attr in self.attributes:
+            setattr(self, attr, getattr(self.project_object, attr))
+        return self
+
+    def upload_logo(self, *args, **kwargs):
+        asyncio.run(self.project_object.upload_logo(*args, **kwargs))
         for attr in self.attributes:
             setattr(self, attr, getattr(self.project_object, attr))
         return self
