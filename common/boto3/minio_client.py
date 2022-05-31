@@ -1,7 +1,21 @@
+# Copyright (C) 2022 Indoc Research
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import aioboto3
-import requests
+import httpx
 import xmltodict
-import asyncio
 
 from botocore.client import Config
 
@@ -40,16 +54,16 @@ class Minio_Client:
 
     async def _get_sts(self, access_token: str, duration: int=86000) -> dict:
 
-        result = requests.post(
-            self.minio_endpoint,
-            params={
-                "Action": "AssumeRoleWithWebIdentity",
-                "WebIdentityToken": access_token,
-                "Version": "2011-06-15",
-                "DurationSeconds": duration,
-            },
-            verify=False
-        )
+        async with httpx.AsyncClient() as client:
+            result = await client.post(
+                self.minio_endpoint,
+                params={
+                    "Action": "AssumeRoleWithWebIdentity",
+                    "WebIdentityToken": access_token,
+                    "Version": "2011-06-15",
+                    "DurationSeconds": duration,
+                }
+            )
 
         # TODO add the secret
         sts_info = xmltodict.parse(result.text)\
@@ -106,7 +120,9 @@ class Minio_Client:
                     'PartNumber': part_number
                 }
             )
-            res = requests.put(signed_url, data=content)
+
+        async with httpx.AsyncClient() as client:
+            res = await client.put(signed_url, data=content)
 
         etag = res.headers.get("ETag").replace("\"", "")
         
