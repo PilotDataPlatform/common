@@ -34,11 +34,18 @@ async def get_minio_admin_client(minio_endpoint:str, access_key:str, secret_key:
 
 
 class _Minio(Minio):
+    """
+    Summary:
+        The inherit class from minio. The main reason is that the python
+        minio deosn't support the IAM policy create. We setup the logic by
+        our own.
+    """
 
     async def create_IAM_policy(self, policy_name:str, content:str):
-        
+        # fetch the credential to generate headers
         creds = self._provider.retrieve() if self._provider else None
         
+        # use native BaseURL class to follow the pattern
         url = self._base_url.build(
             "PUT",
             'us-east-1',
@@ -48,7 +55,7 @@ class _Minio(Minio):
 
         headers = None
         headers, date = self._build_headers(url.netloc, headers, content, creds)
-
+        # make the signiture of request
         headers = sign_v4_s3(
             "PUT",
             url,
@@ -59,6 +66,7 @@ class _Minio(Minio):
             date,
         )
 
+        # sending to minio server to create IAM policy
         str_endpoint = url.scheme + "://" + url.netloc
         async with httpx.AsyncClient() as client:
             response = await client.put(
@@ -73,8 +81,22 @@ class _Minio(Minio):
 
 
 class Minio_Admin_Client:
+    """
+    Summary:
+        The object client for minio admin operation. The class is based on
+        the admin credentials to make the operations including:
+            - create bucket in minio
+            - create IAM role in minio
+    """
 
     def __init__(self, minio_endpoint:str, access_key:str, secret_key:str, https:bool=False) -> None:
+        """
+        Parameter:
+            - minio_endpoint(string): the endpoint of minio(no http schema)
+            - access_key(str): the access key of minio
+            - secret_key(str): the secret key of minio
+            - https(bool): the bool to indicate if it is https connection
+        """
 
         http_prefix = 'https://' if https else 'http://'
         self.minio_endpoint = http_prefix + minio_endpoint
@@ -96,6 +118,26 @@ class Minio_Admin_Client:
         )
 
     async def create_bucket(self, bucket:str):
+        """
+        Summary:
+            The function will create new bucket in minio. The name contraint is following:
+            - Bucket names must be between 3 and 63 characters long.
+            - Bucket names can consist only of lowercase letters, numbers, dots (.), and hyphens (-).
+            - Bucket names must begin and end with a letter or number.
+            - Bucket names must not be formatted as an IP address (for example, 192.168.5.4).
+            - Bucket names can't begin with xn-- (for buckets created after February 2020).
+            - Bucket names must be unique within a partition.
+            - Buckets used with Amazon S3 Transfer Acceleration can't have dots (.) 
+                in their names. For more information about transfer acceleration, 
+                see Amazon S3 Transfer Acceleration.
+
+
+        Parameter:
+            - bucket(str): the policy name
+
+        return:
+            - dict
+        """
 
         async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
             res = await s3.create_bucket(Bucket=bucket)
@@ -103,6 +145,19 @@ class Minio_Admin_Client:
         return res
 
     async def create_policy(self, policy_name:str, content:str):
+        """
+        Summary:
+            The function will use create the IAM policy in minio server.
+            for policy detail, please check the minio document:
+            https://docs.min.io/minio/baremetal/security/minio-identity-management/policy-based-access-control.html
+
+        Parameter:
+            - policy_name(str): the policy name
+            - content(str): the string content of policy
+
+        return:
+            - None
+        """
         
         await self._minio.create_IAM_policy(policy_name, content)
 
