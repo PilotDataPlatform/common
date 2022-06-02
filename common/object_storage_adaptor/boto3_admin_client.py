@@ -14,73 +14,21 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import aioboto3
-import httpx
-import hashlib
 
 from botocore.client import Config
 
-from minio import Minio
-from minio.signer import sign_v4_s3
-from minio.helpers import url_replace
-
 _SIGNATURE_VERSTION = 's3v4'
+
 
 async def get_minio_admin_client(minio_endpoint:str, access_key:str, secret_key:str):
 
-    mc = Minio_Admin_Client(minio_endpoint, access_key, secret_key)
+    mc = Boto3_Admin_Client(minio_endpoint, access_key, secret_key)
     await mc.init_connection()
 
     return mc
 
 
-class _Minio(Minio):
-    """
-    Summary:
-        The inherit class from minio. The main reason is that the python
-        minio deosn't support the IAM policy create. We setup the logic by
-        our own.
-    """
-
-    async def create_IAM_policy(self, policy_name:str, content:str):
-        # fetch the credential to generate headers
-        creds = self._provider.retrieve() if self._provider else None
-        
-        # use native BaseURL class to follow the pattern
-        url = self._base_url.build(
-            "PUT",
-            'us-east-1',
-            query_params={"name": policy_name}
-        )
-        url = url_replace(url, path='/minio/admin/v3/add-canned-policy')
-
-        headers = None
-        headers, date = self._build_headers(url.netloc, headers, content, creds)
-        # make the signiture of request
-        headers = sign_v4_s3(
-            "PUT",
-            url,
-            'us-east-1',
-            headers,
-            creds,
-            hashlib.sha256(content.encode()).hexdigest(),
-            date,
-        )
-
-        # sending to minio server to create IAM policy
-        str_endpoint = url.scheme + "://" + url.netloc
-        async with httpx.AsyncClient() as client:
-            response = await client.put(
-                str_endpoint + "/minio/admin/v3/add-canned-policy",
-                params={"name": policy_name},
-                headers=headers,
-                data=content,
-            )
-
-            if response.status_code != 200:
-                raise Exception("Fail to create minio policy")
-
-
-class Minio_Admin_Client:
+class Boto3_Admin_Client:
     """
     Summary:
         The object client for minio admin operation. The class is based on
@@ -106,7 +54,7 @@ class Minio_Admin_Client:
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
 
-        self._minio = _Minio(minio_endpoint, access_key, secret_key, secure=https)
+        # self._minio = _Minio(minio_endpoint, access_key, secret_key, secure=https)
 
 
     async def init_connection(self):
@@ -141,23 +89,4 @@ class Minio_Admin_Client:
             res = await s3.create_bucket(Bucket=bucket)
 
         return res
-
-    async def create_policy(self, policy_name:str, content:str):
-        """
-        Summary:
-            The function will use create the IAM policy in minio server.
-            for policy detail, please check the minio document:
-            https://docs.min.io/minio/baremetal/security/minio-identity-management/policy-based-access-control.html
-
-        Parameter:
-            - policy_name(str): the policy name
-            - content(str): the string content of policy
-
-        return:
-            - None
-        """
-        
-        await self._minio.create_IAM_policy(policy_name, content)
-
-        return
         
