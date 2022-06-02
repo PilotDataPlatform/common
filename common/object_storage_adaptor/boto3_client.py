@@ -22,9 +22,9 @@ from botocore.client import Config
 _SIGNATURE_VERSTION = 's3v4'
 
 
-async def get_minio_client(minio_endpoint:str, token:str):
+async def get_minio_client(endpoint:str, token:str):
 
-    mc = Boto3_Client(minio_endpoint, token)
+    mc = Boto3_Client(endpoint, token)
     await mc.init_connection()
 
     return mc
@@ -43,15 +43,15 @@ class Boto3_Client:
             - combine parts on server side
     """
 
-    def __init__(self, minio_endpoint:str, token:str, https:bool=False) -> None:
+    def __init__(self, endpoint:str, token:str, https:bool=False) -> None:
         """
         Parameter:
-            - minio_endpoint(string): the endpoint of minio(no http schema)
+            - endpoint(string): the endpoint of minio(no http schema)
             - token(str): the user token from SSO
             - https(bool): the bool to indicate if it is https connection
         """
         
-        self.minio_endpoint = ("https://" if https else "http://") + minio_endpoint
+        self.endpoint = ("https://" if https else "http://") + endpoint
         self.token= token
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
@@ -98,7 +98,7 @@ class Boto3_Client:
 
         async with httpx.AsyncClient() as client:
             result = await client.post(
-                self.minio_endpoint,
+                self.endpoint,
                 params={
                     "Action": "AssumeRoleWithWebIdentity",
                     "WebIdentityToken": access_token,
@@ -129,7 +129,7 @@ class Boto3_Client:
             - None
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             await s3.download_file(bucket, key, local_path)
 
     
@@ -148,7 +148,7 @@ class Boto3_Client:
             - None
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             await s3.copy_object(Bucket=bucket, CopySource=source, Key=destination)
 
 
@@ -167,7 +167,7 @@ class Boto3_Client:
             - presigned url(str)
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             presigned_url = await s3.generate_presigned_url(
                 'get_object',
                 Params={
@@ -193,7 +193,7 @@ class Boto3_Client:
             - upload_id(str)
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.create_multipart_upload(Bucket=bucket, Key=key)
             upload_id = res.get("UploadId")
 
@@ -217,7 +217,7 @@ class Boto3_Client:
             - dict: will be collected and used in third step
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             signed_url = await s3.generate_presigned_url(
                 ClientMethod='upload_part',
                 Params={
@@ -252,7 +252,7 @@ class Boto3_Client:
             - dict
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.complete_multipart_upload(
                 Bucket=bucket,
                 Key=key,

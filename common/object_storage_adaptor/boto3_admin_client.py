@@ -20,9 +20,9 @@ from botocore.client import Config
 _SIGNATURE_VERSTION = 's3v4'
 
 
-async def get_minio_admin_client(minio_endpoint:str, access_key:str, secret_key:str):
+async def get_minio_admin_client(endpoint:str, access_key:str, secret_key:str):
 
-    mc = Boto3_Admin_Client(minio_endpoint, access_key, secret_key)
+    mc = Boto3_Admin_Client(endpoint, access_key, secret_key)
     await mc.init_connection()
 
     return mc
@@ -37,25 +37,22 @@ class Boto3_Admin_Client:
             - create IAM role in minio
     """
 
-    def __init__(self, minio_endpoint:str, access_key:str, secret_key:str, https:bool=False) -> None:
+    def __init__(self, endpoint:str, access_key:str, secret_key:str, https:bool=False) -> None:
         """
         Parameter:
-            - minio_endpoint(string): the endpoint of minio(no http schema)
+            - endpoint(string): the endpoint of minio(no http schema)
             - access_key(str): the access key of minio
             - secret_key(str): the secret key of minio
             - https(bool): the bool to indicate if it is https connection
         """
 
         http_prefix = 'https://' if https else 'http://'
-        self.minio_endpoint = http_prefix + minio_endpoint
+        self.endpoint = http_prefix + endpoint
         self.access_key = access_key
         self.secret_key = secret_key
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
-
-        # self._minio = _Minio(minio_endpoint, access_key, secret_key, secure=https)
-
 
     async def init_connection(self):
 
@@ -85,7 +82,7 @@ class Boto3_Admin_Client:
             - dict
         """
 
-        async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.create_bucket(Bucket=bucket)
 
         return res
