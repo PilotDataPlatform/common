@@ -372,6 +372,18 @@ optional = false
 python-versions = ">=3.7"
 
 [[package]]
+name = "minio"
+version = "7.1.8"
+description = "MinIO Python SDK for Amazon S3 Compatible Cloud Storage"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+certifi = "*"
+urllib3 = "*"
+
+[[package]]
 name = "multidict"
 version = "6.0.2"
 description = "multidict implementation"
@@ -711,7 +723,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "31c8ae50ec19757c506a9470f6da7f6df8eab08e0557edee1b868da77fbe28ae"
+content-hash = "1e857c5533ceb5525e4101557be2b91f228e0cb6a7b76850a05ba4c7560bf4c0"
 
 [metadata.files]
 aioboto3 = [
@@ -987,6 +999,10 @@ iniconfig = [
 jmespath = [
     {file = "jmespath-1.0.0-py3-none-any.whl", hash = "sha256:e8dcd576ed616f14ec02eed0005c85973b5890083313860136657e24784e4c04"},
     {file = "jmespath-1.0.0.tar.gz", hash = "sha256:a490e280edd1f57d6de88636992d05b71e97d69a26a19f058ecf7d304474bf5e"},
+]
+minio = [
+    {file = "minio-7.1.8-py3-none-any.whl", hash = "sha256:0feadaf4cfd8608ccaf17b092c799bbe4b9e0692f9c15f5e03c5ee21d85e8cdb"},
+    {file = "minio-7.1.8.tar.gz", hash = "sha256:c3fe5448ca281c88fe58f0486a73e0df6cdb05e8dbf72eb79e570e71125c1686"},
 ]
 multidict = [
     {file = "multidict-6.0.2-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:0b9e95a740109c6047602f4db4da9949e6c5945cefbad34a1299775ddc9a62e2"},
