@@ -141,8 +141,6 @@ class Minio_Client:
             - None
         """
 
-        # TODO handle the file > 5GB
-
         async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
             await s3.copy_object(Bucket=bucket, CopySource=source, Key=destination)
 
@@ -246,7 +244,6 @@ class Minio_Client:
         return:
             - dict
         """
-
 
         async with self._session.client('s3', endpoint_url=self.minio_endpoint, config=self._config) as s3:
             res = await s3.complete_multipart_upload(

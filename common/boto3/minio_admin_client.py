@@ -111,7 +111,6 @@ class Minio_Admin_Client:
 
     async def init_connection(self):
 
-        # todo in the thread pool
         self._session = aioboto3.Session(
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key
@@ -130,7 +129,6 @@ class Minio_Admin_Client:
             - Buckets used with Amazon S3 Transfer Acceleration can't have dots (.) 
                 in their names. For more information about transfer acceleration, 
                 see Amazon S3 Transfer Acceleration.
-
 
         Parameter:
             - bucket(str): the policy name
