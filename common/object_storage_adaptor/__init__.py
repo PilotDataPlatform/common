@@ -13,5 +13,5 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .boto3_admin_client import get_minio_admin_client
-from .boto3_client import get_minio_client
+from .boto3_admin_client import get_boto3_admin_client
+from .boto3_client import get_boto3_client

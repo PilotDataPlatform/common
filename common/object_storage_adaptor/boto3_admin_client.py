@@ -20,7 +20,7 @@ from botocore.client import Config
 _SIGNATURE_VERSTION = 's3v4'
 
 
-async def get_minio_admin_client(endpoint:str, access_key:str, secret_key:str):
+async def get_boto3_admin_client(endpoint:str, access_key:str, secret_key:str):
 
     mc = Boto3_Admin_Client(endpoint, access_key, secret_key)
     await mc.init_connection()
