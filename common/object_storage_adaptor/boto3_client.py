@@ -16,15 +16,18 @@
 import aioboto3
 import httpx
 import xmltodict
-
 from botocore.client import Config
 
 _SIGNATURE_VERSTION = 's3v4'
 
 
-async def get_boto3_client(endpoint:str, token:str):
+class TokenExpired(Exception):
+    pass
 
-    mc = Boto3_Client(endpoint, token)
+
+async def get_boto3_client(endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False):
+
+    mc = Boto3_Client(endpoint, token, temp_credentials, https)
     await mc.init_connection()
 
     return mc
@@ -43,20 +46,20 @@ class Boto3_Client:
             - combine parts on server side
     """
 
-    def __init__(self, endpoint:str, token:str, https:bool=False) -> None:
+    def __init__(self, endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False) -> None:
         """
         Parameter:
             - endpoint(string): the endpoint of minio(no http schema)
             - token(str): the user token from SSO
             - https(bool): the bool to indicate if it is https connection
         """
-        
-        self.endpoint = ("https://" if https else "http://") + endpoint
-        self.token= token
+
+        self.endpoint = ('https://' if https else 'http://') + endpoint
+        self.token = token
+        self.temp_credentials = temp_credentials
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
-
 
     async def init_connection(self):
         """
@@ -67,18 +70,20 @@ class Boto3_Client:
             - None
         """
 
+        # if we receive token by first time
         # ask minio to give the temperary credentials
-        credentials = await self._get_sts(self.token)
+        if self.token is not None:
+            self.temp_credentials = await self._get_sts(self.token)
 
         self._session = aioboto3.Session(
-            aws_access_key_id=credentials.get("AccessKeyId"),
-            aws_secret_access_key=credentials.get("SecretAccessKey"),
-            aws_session_token=credentials.get("SessionToken")
+            aws_access_key_id=self.temp_credentials.get('AccessKeyId'),
+            aws_secret_access_key=self.temp_credentials.get('SecretAccessKey'),
+            aws_session_token=self.temp_credentials.get('SessionToken'),
         )
 
         return
 
-    async def _get_sts(self, access_token: str, duration: int=86000) -> dict:
+    async def _get_sts(self, access_token: str, duration: int = 86000) -> dict:
         """
         Summary:
             The function will use the token given to minio and
@@ -96,22 +101,31 @@ class Boto3_Client:
             - dict
         """
 
-        async with httpx.AsyncClient() as client:
-            result = await client.post(
-                self.endpoint,
-                params={
-                    "Action": "AssumeRoleWithWebIdentity",
-                    "WebIdentityToken": access_token,
-                    "Version": "2011-06-15",
-                    "DurationSeconds": duration,
-                }
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                result = await client.post(
+                    self.endpoint,
+                    params={
+                        'Action': 'AssumeRoleWithWebIdentity',
+                        'WebIdentityToken': access_token.replace('Bearer ', ''),
+                        'Version': '2011-06-15',
+                        'DurationSeconds': duration,
+                    },
+                )
+
+                if result.status_code == 400:
+                    raise TokenExpired('Token expired')
+
+        except Exception as e:
+            raise e
 
         # TODO add the secret
-        sts_info = xmltodict.parse(result.text)\
-            .get("AssumeRoleWithWebIdentityResponse", {})\
-            .get("AssumeRoleWithWebIdentityResult", {})\
-            .get("Credentials", {})
+        sts_info = (
+            xmltodict.parse(result.text)
+            .get('AssumeRoleWithWebIdentityResponse', {})
+            .get('AssumeRoleWithWebIdentityResult', {})
+            .get('Credentials', {})
+        )
 
         return sts_info
 
@@ -132,7 +146,6 @@ class Boto3_Client:
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             await s3.download_file(bucket, key, local_path)
 
-    
     async def copy_object(self, bucket: str, source: str, destination: str):
         """
         Summary:
@@ -151,8 +164,7 @@ class Boto3_Client:
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             await s3.copy_object(Bucket=bucket, CopySource=source, Key=destination)
 
-
-    async def get_download_presigned_url(self, bucket: str, key: str, duration: int=3600) -> str:
+    async def get_download_presigned_url(self, bucket: str, key: str, duration: int = 3600) -> str:
         """
         Summary:
             The function is the boto3 wrapup to generate a download presigned url.
@@ -169,36 +181,37 @@ class Boto3_Client:
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             presigned_url = await s3.generate_presigned_url(
-                'get_object',
-                Params={
-                    'Bucket': bucket,
-                    'Key': key
-                },
-                ExpiresIn=duration
+                'get_object', Params={'Bucket': bucket, 'Key': key}, ExpiresIn=duration
             )
 
         return presigned_url
 
-    async def prepare_multipart_upload(self, bucket: str, key: str) -> str:
+    async def prepare_multipart_upload(self, bucket: str, keys: str) -> str:
         """
         Summary:
             The function is the boto3 wrapup to generate a multipart upload presigned url.
-            This is the first step to do the multipart upload
+            This is the first step to do the multipart upload.
+
+            NOTE: The api has been changed to adapot the batch operation. The prepare
+            upload api is a batch operation to create all jobs and lock in advance. If
+            not, the performance will decrease that every iteration will try to connect
+            with endpoints
 
         Parameter:
             - bucket(str): the bucket name
-            - key(str): the object path of file
+            - keys(list of str): the object path of file
 
         return:
-            - upload_id(str)
+            - upload_id(list): list of upload id will be used in later two apis
         """
 
+        upload_id_list = []
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
-            res = await s3.create_multipart_upload(Bucket=bucket, Key=key)
-            upload_id = res.get("UploadId")
+            for key in keys:
+                res = await s3.create_multipart_upload(Bucket=bucket, Key=key)
+                upload_id_list.append(res.get('UploadId'))
 
-        return upload_id
-
+        return upload_id_list
 
     async def part_upload(self, bucket: str, key: str, upload_id: str, part_number: int, content: str) -> dict:
         """
@@ -220,19 +233,14 @@ class Boto3_Client:
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             signed_url = await s3.generate_presigned_url(
                 ClientMethod='upload_part',
-                Params={
-                    'Bucket': bucket,
-                    'Key': key,
-                    'UploadId': upload_id,
-                    'PartNumber': part_number
-                }
+                Params={'Bucket': bucket, 'Key': key, 'UploadId': upload_id, 'PartNumber': part_number},
             )
 
         async with httpx.AsyncClient() as client:
             res = await client.put(signed_url, data=content)
 
-        etag = res.headers.get("ETag").replace("\"", "")
-        
+        etag = res.headers.get('ETag').replace("\"", '')
+
         return {'ETag': etag, 'PartNumber': part_number}
 
     async def combine_chunks(self, bucket: str, key: str, upload_id: str, parts: list) -> dict:
@@ -254,10 +262,7 @@ class Boto3_Client:
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.complete_multipart_upload(
-                Bucket=bucket,
-                Key=key,
-                MultipartUpload={'Parts': parts},
-                UploadId=upload_id
+                Bucket=bucket, Key=key, MultipartUpload={'Parts': parts}, UploadId=upload_id
             )
 
         return res
