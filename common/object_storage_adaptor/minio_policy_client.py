@@ -23,12 +23,12 @@ from minio.helpers import url_replace
 
 async def get_minio_policy_client(endpoint:str, access_key:str, secret_key:str, https:bool=False):
 
-    mc = Minio_Policy_Client(endpoint, access_key, secret_key, secure=https)
+    mc = MinioPolicyClient(endpoint, access_key, secret_key, secure=https)
 
     return mc
 
 
-class Minio_Policy_Client(Minio):
+class MinioPolicyClient(Minio):
     """
     Summary:
         The inherit class from minio. The main reason is that the python

@@ -22,13 +22,13 @@ _SIGNATURE_VERSTION = 's3v4'
 
 async def get_boto3_admin_client(endpoint:str, access_key:str, secret_key:str):
 
-    mc = Boto3_Admin_Client(endpoint, access_key, secret_key)
+    mc = Boto3AdminClient(endpoint, access_key, secret_key)
     await mc.init_connection()
 
     return mc
 
 
-class Boto3_Admin_Client:
+class Boto3AdminClient:
     """
     Summary:
         The object client for minio admin operation. The class is based on

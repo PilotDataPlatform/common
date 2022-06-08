@@ -27,13 +27,13 @@ class TokenExpired(Exception):
 
 async def get_boto3_client(endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False):
 
-    mc = Boto3_Client(endpoint, token, temp_credentials, https)
+    mc = Boto3Client(endpoint, token, temp_credentials, https)
     await mc.init_connection()
 
     return mc
 
 
-class Boto3_Client:
+class Boto3Client:
     """
     Summary:
         The object client for minio operation. This class is based on
