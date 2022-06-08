@@ -21,7 +21,12 @@ from minio.signer import sign_v4_s3
 from minio.helpers import url_replace
 
 
-async def get_minio_policy_client(endpoint:str, access_key:str, secret_key:str, https:bool=False):
+async def get_minio_policy_client(
+    endpoint:str,
+    access_key:str,
+    secret_key:str,
+    https:bool=False
+):
 
     mc = MinioPolicyClient(endpoint, access_key, secret_key, secure=https)
 
@@ -40,7 +45,7 @@ class MinioPolicyClient(Minio):
         setup the logic by our own.
     """
 
-    async def create_IAM_policy(self, policy_name:str, content:str):
+    async def create_IAM_policy(self, policy_name:str, content:str, region:str='us-east-1'):
         """
         Summary:
             The function will use create the IAM policy in minio server.
@@ -61,7 +66,7 @@ class MinioPolicyClient(Minio):
         # use native BaseURL class to follow the pattern
         url = self._base_url.build(
             "PUT",
-            'us-east-1',
+            region,
             query_params={"name": policy_name}
         )
         url = url_replace(url, path='/minio/admin/v3/add-canned-policy')
@@ -72,7 +77,7 @@ class MinioPolicyClient(Minio):
         headers = sign_v4_s3(
             "PUT",
             url,
-            'us-east-1',
+            region,
             headers,
             creds,
             hashlib.sha256(content.encode()).hexdigest(),
@@ -91,3 +96,5 @@ class MinioPolicyClient(Minio):
 
             if response.status_code != 200:
                 raise Exception("Fail to create minio policy")
+
+        return None
