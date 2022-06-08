@@ -16,7 +16,10 @@ setuptools.setup(
     install_requires=[
         'python-dotenv==0.19.1',
         'httpx==0.22.0',
-        'aioredis>=2.0.0<3.0.0.'
+        'aioredis>=2.0.0<3.0.0.',
+        'aioboto3==^9.6.0',
+        'xmltodict==^0.13.0',
+        'minio==^7.1.8'
     ],
     include_package_data=True,
     package_data={
