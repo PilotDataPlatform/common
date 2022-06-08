@@ -14,13 +14,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import aioboto3
-
 from botocore.client import Config
 
 _SIGNATURE_VERSTION = 's3v4'
 
 
-async def get_boto3_admin_client(endpoint:str, access_key:str, secret_key:str):
+async def get_boto3_admin_client(endpoint: str, access_key: str, secret_key: str):
 
     mc = Boto3AdminClient(endpoint, access_key, secret_key)
     await mc.init_connection()
@@ -37,7 +36,7 @@ class Boto3AdminClient:
             - create IAM role in minio
     """
 
-    def __init__(self, endpoint:str, access_key:str, secret_key:str, https:bool=False) -> None:
+    def __init__(self, endpoint: str, access_key: str, secret_key: str, https: bool = False) -> None:
         """
         Parameter:
             - endpoint(string): the endpoint of minio(no http schema)
@@ -56,12 +55,9 @@ class Boto3AdminClient:
 
     async def init_connection(self):
 
-        self._session = aioboto3.Session(
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_key
-        )
+        self._session = aioboto3.Session(aws_access_key_id=self.access_key, aws_secret_access_key=self.secret_key)
 
-    async def create_bucket(self, bucket:str):
+    async def create_bucket(self, bucket: str):
         """
         Summary:
             The function will create new bucket in minio. The name contraint is following:
@@ -71,8 +67,8 @@ class Boto3AdminClient:
             - Bucket names must not be formatted as an IP address (for example, 192.168.5.4).
             - Bucket names can't begin with xn-- (for buckets created after February 2020).
             - Bucket names must be unique within a partition.
-            - Buckets used with Amazon S3 Transfer Acceleration can't have dots (.) 
-                in their names. For more information about transfer acceleration, 
+            - Buckets used with Amazon S3 Transfer Acceleration can't have dots (.)
+                in their names. For more information about transfer acceleration,
                 see Amazon S3 Transfer Acceleration.
 
         Parameter:
@@ -86,4 +82,3 @@ class Boto3AdminClient:
             res = await s3.create_bucket(Bucket=bucket)
 
         return res
-        

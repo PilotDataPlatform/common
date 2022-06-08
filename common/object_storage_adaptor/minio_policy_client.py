@@ -13,20 +13,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpx
 import hashlib
 
+import httpx
 from minio import Minio
-from minio.signer import sign_v4_s3
 from minio.helpers import url_replace
+from minio.signer import sign_v4_s3
 
 
-async def get_minio_policy_client(
-    endpoint:str,
-    access_key:str,
-    secret_key:str,
-    https:bool=False
-):
+async def get_minio_policy_client(endpoint: str, access_key: str, secret_key: str, https: bool = False):
 
     mc = MinioPolicyClient(endpoint, access_key, secret_key, secure=https)
 
@@ -45,7 +40,7 @@ class MinioPolicyClient(Minio):
         setup the logic by our own.
     """
 
-    async def create_IAM_policy(self, policy_name:str, content:str, region:str='us-east-1'):
+    async def create_IAM_policy(self, policy_name: str, content: str, region: str = 'us-east-1'):
         """
         Summary:
             The function will use create the IAM policy in minio server.
@@ -62,20 +57,16 @@ class MinioPolicyClient(Minio):
 
         # fetch the credential to generate headers
         creds = self._provider.retrieve() if self._provider else None
-        
+
         # use native BaseURL class to follow the pattern
-        url = self._base_url.build(
-            "PUT",
-            region,
-            query_params={"name": policy_name}
-        )
+        url = self._base_url.build('PUT', region, query_params={'name': policy_name})
         url = url_replace(url, path='/minio/admin/v3/add-canned-policy')
 
         headers = None
         headers, date = self._build_headers(url.netloc, headers, content, creds)
         # make the signiture of request
         headers = sign_v4_s3(
-            "PUT",
+            'PUT',
             url,
             region,
             headers,
@@ -85,16 +76,16 @@ class MinioPolicyClient(Minio):
         )
 
         # sending to minio server to create IAM policy
-        str_endpoint = url.scheme + "://" + url.netloc
+        str_endpoint = url.scheme + '://' + url.netloc
         async with httpx.AsyncClient() as client:
             response = await client.put(
-                str_endpoint + "/minio/admin/v3/add-canned-policy",
-                params={"name": policy_name},
+                str_endpoint + '/minio/admin/v3/add-canned-policy',
+                params={'name': policy_name},
                 headers=headers,
                 data=content,
             )
 
             if response.status_code != 200:
-                raise Exception("Fail to create minio policy")
+                raise Exception('Fail to create minio policy')
 
         return None
