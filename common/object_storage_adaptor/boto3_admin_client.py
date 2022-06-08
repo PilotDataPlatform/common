@@ -72,7 +72,7 @@ class Boto3AdminClient:
                 see Amazon S3 Transfer Acceleration.
 
         Parameter:
-            - bucket(str): the policy name
+            - bucket(str): the unique bucket name
 
         return:
             - dict
@@ -82,3 +82,36 @@ class Boto3AdminClient:
             res = await s3.create_bucket(Bucket=bucket)
 
         return res
+
+    async def create_bucket_encryption(self, bucket: str, algorithm: str = "AES256"):
+        """
+        Summary:
+            The function will create the bucket encryption rule. The rule will using
+            AES256 to make encrytion.
+
+
+        Parameter:
+            - bucket(str): the unique bucket name
+            - algorithm(str): the algorithm by default is AES256. please refer to boto3
+                documentation for other options:
+                https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_bucket_encryption
+
+        return:
+            - dict
+        """
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.put_bucket_encryption(
+                Bucket=bucket,
+                ServerSideEncryptionConfiguration={
+                    'Rules': [
+                        {
+                            'ApplyServerSideEncryptionByDefault': {
+                                'SSEAlgorithm': algorithm,
+                            },
+                        },
+                    ]
+                },
+            )
+
+            return res
