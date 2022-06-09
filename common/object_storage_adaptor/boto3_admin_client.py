@@ -83,12 +83,11 @@ class Boto3AdminClient:
 
         return res
 
-    async def create_bucket_encryption(self, bucket: str, algorithm: str = "AES256"):
+    async def create_bucket_encryption(self, bucket: str, algorithm: str = "AES256") -> dict:
         """
         Summary:
             The function will create the bucket encryption rule. The rule will using
             AES256 to make encrytion.
-
 
         Parameter:
             - bucket(str): the unique bucket name
@@ -111,6 +110,30 @@ class Boto3AdminClient:
                             },
                         },
                     ]
+                },
+            )
+
+            return res
+
+    async def set_bucket_versioning(self, bucket: str, status: str = "Enabled") -> dict:
+        """
+        Summary:
+            The function will set the bucket versioning based on input.
+
+        Parameter:
+            - bucket(str): the unique bucket name
+            - status(str): the status of versioning
+
+        return:
+            - dict
+        """
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = s3.put_bucket_versioning(
+                Bucket=bucket,
+                VersioningConfiguration={
+                    'MFADelete': 'Disabled',
+                    'Status': status,
                 },
             )
 
