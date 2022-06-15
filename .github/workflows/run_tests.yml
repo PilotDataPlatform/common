@@ -35,7 +35,7 @@ jobs:
 
       - name: Test with coverage
         run: |
-          PYTHONPATH=. poetry run pytest -vvv --cov=common --cov-report term --cov-report=xml
+          poetry run pytest -vvv --cov=common --cov-report term --cov-report=xml
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
