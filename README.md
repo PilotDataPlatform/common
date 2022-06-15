@@ -4,6 +4,8 @@
 [![Python 3.7](https://img.shields.io/badge/python-3.7-green?style=for-the-badge)](https://www.python.org/)
 [![PyPI](https://img.shields.io/pypi/v/pilot-platform-common?style=for-the-badge)](https://pypi.org/project/pilot-platform-common/)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/pilotdataplatform/common/Run%20Tests?style=for-the-badge)](https://github.com/PilotDataPlatform/common/actions)
+[![codecov](https://img.shields.io/codecov/c/github/PilotDataPlatform/common?style=for-the-badge)](https://codecov.io/gh/PilotDataPlatform/common)
+
 
 Importable Pip package that generates entity ID and connects with Vault (secret engine) to retrieve credentials.
 

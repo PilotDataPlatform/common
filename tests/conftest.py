@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from testcontainers.redis import RedisContainer
 
-PROJECT_URL  = "http://project"
+PROJECT_URL = "http://project"
 
 PROJECT_ID = str(uuid4())
 
@@ -26,6 +26,7 @@ def mock_get_by_code(httpx_mock):
         json=PROJECT_DATA,
         status_code=200,
     )
+
 
 @pytest.fixture
 def mock_get_by_id(httpx_mock):
