@@ -12,12 +12,15 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
+
       - name: Init Python 3.7
         uses: actions/setup-python@v2
         with:
           python-version: 3.7
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
+
       - name: Cache Poetry virtualenv
         uses: actions/cache@v1
         id: cache
@@ -26,8 +29,16 @@ jobs:
           key: poetry-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
             poetry-${{ hashFiles('**/poetry.lock') }}
+
       - name: Install dependencies
         run: poetry install
-      - name: Test with pytest
+
+      - name: Test with coverage
         run: |
-          poetry run pytest
+          PYTHONPATH=. poetry run pytest -vvv --cov=common --cov-report term --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
