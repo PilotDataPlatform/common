@@ -9,7 +9,7 @@ from tests.conftest import PROJECT_CREDENTIALS
 
 @patch('aioboto3.Session')
 @pytest.mark.asyncio
-async def test_boto3_client_init_connection_with_token(_session, redis, mock_post_by_token):
+async def test_boto3_client_init_connection_with_token(_session, mock_post_by_token):
     """Testing that Boto3_client requests credentials and creates boto3 session."""
     boto3_client = Boto3_Client(endpoint='project', token='test')
     await boto3_client.init_connection()
@@ -26,7 +26,7 @@ async def test_boto3_client_init_connection_with_token(_session, redis, mock_pos
 
 @patch('aioboto3.Session')
 @pytest.mark.asyncio
-async def test_get_boto3_client(_session, redis):
+async def test_get_boto3_client(_session):
     boto3_client = await get_boto3_client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
 
     # Asserting that we get a correct boto3 client class
@@ -41,7 +41,7 @@ async def test_get_boto3_client(_session, redis):
 
 @patch('aioboto3.Session.client')
 @pytest.mark.asyncio
-async def test_boto3_client_download_file(_client, redis):
+async def test_boto3_client_download_file(_client):
     """Testing that Boto3_client downloads the file from s3."""
     boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
     await boto3_client.init_connection()
@@ -55,7 +55,7 @@ async def test_boto3_client_download_file(_client, redis):
 
 @patch('aioboto3.Session.client')
 @pytest.mark.asyncio
-async def test_boto3_client_copy_file(_client, redis):
+async def test_boto3_client_copy_file(_client):
     """Testing that Boto3_client copies the file from s3."""
     boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
     await boto3_client.init_connection()
@@ -69,7 +69,7 @@ async def test_boto3_client_copy_file(_client, redis):
 
 @patch('aioboto3.Session.client')
 @pytest.mark.asyncio
-async def test_boto3_client_download_presigned_url(_client, redis):
+async def test_boto3_client_download_presigned_url(_client):
     """Testing that Boto3_client gets download presigned_url."""
     boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
     await boto3_client.init_connection()
@@ -83,7 +83,7 @@ async def test_boto3_client_download_presigned_url(_client, redis):
 
 @patch('aioboto3.Session.client')
 @pytest.mark.asyncio
-async def test_boto3_client_prepare_multipart_upload(_client, redis):
+async def test_boto3_client_prepare_multipart_upload(_client):
     """Testing that Boto3_client creates multipart upload."""
     boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
     await boto3_client.init_connection()
@@ -101,7 +101,7 @@ async def test_boto3_client_prepare_multipart_upload(_client, redis):
 
 @patch('aioboto3.Session.client')
 @pytest.mark.asyncio
-async def test_boto3_client_combine_chunks(_client, redis):
+async def test_boto3_client_combine_chunks(_client):
     """Testing that Boto3_client combines chunks."""
     boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
     await boto3_client.init_connection()
