@@ -74,6 +74,13 @@ def mock_put_part_upload(httpx_mock):
     httpx_mock.add_response(method='PUT', url='http://signed-url', status_code=200, headers={'Etag': 'test'})
 
 
+@pytest.fixture
+def mock_put_add_policy(httpx_mock):
+    httpx_mock.add_response(
+        method='PUT', url='https://project/minio/admin/v3/add-canned-policy?name=test+policy', status_code=200
+    )
+
+
 @pytest.fixture(scope='session', autouse=True)
 def redis():
     with RedisContainer('redis:latest') as redis:
