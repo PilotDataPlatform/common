@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 import aioboto3
 import httpx
 import xmltodict
@@ -143,26 +144,35 @@ class Boto3Client:
             - None
         """
 
+        # here create directory tree if not exist
+        directory = os.path.dirname(local_path)
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             await s3.download_file(bucket, key, local_path)
 
-    async def copy_object(self, bucket: str, source: str, destination: str):
+    async def copy_object(self, source_bucket: str, source_key: str, dest_bucket: str, dest_key: str):
         """
         Summary:
             The function is the boto3 wrapup to copy the file on server side.
             Note here the single copy will only allow the upto 5GB
 
         Parameter:
-            - bucket(str): the bucket name
-            - key(str): the object path of file
-            - local_path(str): the local path to download the file
+            - source_bucket(str): the name of source bucket
+            - source_key(str): the key of source path
+            - dest_bucket(str): the name of destination bucket
+            - dest_key(str): the key of destination path
 
         return:
-            - None
+            - object meta
         """
 
+        source_file = os.path.join(source_bucket, source_key)
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
-            await s3.copy_object(Bucket=bucket, CopySource=source, Key=destination)
+            res = await s3.copy_object(Bucket=dest_bucket, CopySource=source_file, Key=dest_key)
+
+        return res
 
     async def get_download_presigned_url(self, bucket: str, key: str, duration: int = 3600) -> str:
         """
