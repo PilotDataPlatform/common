@@ -147,7 +147,7 @@ class Boto3Client:
         # here create directory tree if not exist
         directory = os.path.dirname(local_path)
         if not os.path.exists(directory):
-            os.mkdir(directory)
+            os.makedirs(directory)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             await s3.download_file(bucket, key, local_path)
