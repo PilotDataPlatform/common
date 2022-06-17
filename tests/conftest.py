@@ -1,7 +1,9 @@
+import asyncio
 from uuid import uuid4
 
 import httpx
 import pytest
+import pytest_asyncio
 from dicttoxml import dicttoxml
 from testcontainers.redis import RedisContainer
 
@@ -23,6 +25,15 @@ PROJECT_CREDENTIALS = {
     'SecretAccessKey': 'test',
     'SessionToken': 'test',
 }
+
+
+@pytest_asyncio.fixture(scope='session')
+def event_loop(request):
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+    asyncio.set_event_loop_policy(None)
 
 
 @pytest.fixture
