@@ -1,13 +1,10 @@
 from unittest.mock import call
 from unittest.mock import patch
 
-import pytest
-
 from common.object_storage_adaptor.boto3_admin_client import Boto3_Admin_Client
 from common.object_storage_adaptor.boto3_admin_client import get_boto3_admin_client
 
 
-@pytest.mark.asyncio
 async def test_get_boto3_admin_client_returns_class_instance():
     admin_client = await get_boto3_admin_client('project', access_key='access key', secret_key='secret key')
     assert isinstance(admin_client, Boto3_Admin_Client)
