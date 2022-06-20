@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import List
+
 import aioboto3
 import httpx
 import xmltodict
@@ -186,7 +188,7 @@ class Boto3_Client:
 
         return presigned_url
 
-    async def prepare_multipart_upload(self, bucket: str, keys: list) -> list:
+    async def prepare_multipart_upload(self, bucket: str, keys: List[str]) -> List[str]:
         """
         Summary:
             The function is the boto3 wrapup to generate a multipart upload presigned url.
