@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import List
+
 import aioboto3
 import httpx
 import xmltodict
@@ -129,7 +131,7 @@ class Boto3_Client:
 
         return sts_info
 
-    async def downlaod_object(self, bucket: str, key: str, local_path: str) -> None:
+    async def download_object(self, bucket: str, key: str, local_path: str) -> None:
         """
         Summary:
             The function is the boto3 wrapup to download the file from minio
@@ -186,7 +188,7 @@ class Boto3_Client:
 
         return presigned_url
 
-    async def prepare_multipart_upload(self, bucket: str, keys: str) -> str:
+    async def prepare_multipart_upload(self, bucket: str, keys: List[str]) -> List[str]:
         """
         Summary:
             The function is the boto3 wrapup to generate a multipart upload presigned url.
