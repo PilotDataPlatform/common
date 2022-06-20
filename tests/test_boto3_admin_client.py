@@ -15,7 +15,6 @@ async def test_boto3_admin_client_init_connection(_session):
     admin_client = Boto3_Admin_Client('project', access_key='access key', secret_key='secret key')
     await admin_client.init_connection()
 
-    # Asserting that boto3 session was created with correct credentials
     _session.assert_called_with(
         aws_access_key_id='access key',
         aws_secret_access_key='secret key',
