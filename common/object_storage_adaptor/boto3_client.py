@@ -174,6 +174,42 @@ class Boto3Client:
 
         return res
 
+    async def delete_object(self, bucket: str, key: str) -> dict:
+        """
+        Summary:
+            The function is the boto3 wrapup to delete the file on server.
+
+        Parameter:
+            - bucket(str): the name of bucket
+            - key(str): the key of source path
+
+        return:
+            - object meta: contains the version_id
+        """
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.delete_object(Bucket=bucket, key=key)
+
+        return res
+
+    async def stat_object(self, bucket: str, key: str) -> dict:
+        """
+        Summary:
+            The function is the boto3 wrapup to get the file metadata.
+
+        Parameter:
+            - bucket(str): the name of bucket
+            - key(str): the key of source path
+
+        return:
+            - object meta: contains the version_id
+        """
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.get_object(Bucket=bucket, key=key)
+
+        return res
+
     async def get_download_presigned_url(self, bucket: str, key: str, duration: int = 3600) -> str:
         """
         Summary:
