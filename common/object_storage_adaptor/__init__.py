@@ -16,4 +16,5 @@
 from .boto3_admin_client import get_boto3_admin_client
 from .boto3_client import TokenExpired
 from .boto3_client import get_boto3_client
-from .minio_policy_client import get_minio_policy_client, PolicyDoesNotExist
+from .minio_policy_client import PolicyDoesNotExist
+from .minio_policy_client import get_minio_policy_client

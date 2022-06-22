@@ -89,7 +89,6 @@ class MinioPolicyClient(Minio):
 
         return 'success'
 
-
     async def get_IAM_policy(self, policy_name: str, region: str = 'us-east-1'):
         """
         Summary:
@@ -125,11 +124,10 @@ class MinioPolicyClient(Minio):
                 params=params,
                 headers=headers,
             )
-            
+
             if response.status_code == 404:
-                raise PolicyDoesNotExist('Policy %s does not exist'%policy_name)
+                raise PolicyDoesNotExist('Policy %s does not exist' % policy_name)
             elif response.status_code != 200:
                 raise Exception('Fail to get minio policy' + str(response.text))
 
         return response.json()
-
