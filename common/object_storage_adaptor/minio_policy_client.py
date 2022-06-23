@@ -116,7 +116,7 @@ class MinioPolicyClient(Minio):
         content_hash = hashlib.sha256(''.encode()).hexdigest()
         headers = sign_v4_s3('GET', url, region, headers, creds, content_hash, date)
 
-        # sending to minio server to create IAM policy
+        # sending to minio server to get IAM policy
         str_endpoint = url.scheme + '://' + url.netloc
         async with httpx.AsyncClient() as client:
             response = await client.get(
