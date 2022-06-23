@@ -14,6 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+
 import aioboto3
 import httpx
 import xmltodict
@@ -171,6 +172,42 @@ class Boto3Client:
         source_file = os.path.join(source_bucket, source_key)
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.copy_object(Bucket=dest_bucket, CopySource=source_file, Key=dest_key)
+
+        return res
+
+    async def delete_object(self, bucket: str, key: str) -> dict:
+        """
+        Summary:
+            The function is the boto3 wrapup to delete the file on server.
+
+        Parameter:
+            - bucket(str): the name of bucket
+            - key(str): the key of source path
+
+        return:
+            - object meta: contains the version_id
+        """
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.delete_object(Bucket=bucket, key=key)
+
+        return res
+
+    async def stat_object(self, bucket: str, key: str) -> dict:
+        """
+        Summary:
+            The function is the boto3 wrapup to get the file metadata.
+
+        Parameter:
+            - bucket(str): the name of bucket
+            - key(str): the key of source path
+
+        return:
+            - object meta: contains the version_id
+        """
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.get_object(Bucket=bucket, key=key)
 
         return res
 

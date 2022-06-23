@@ -129,7 +129,7 @@ class Boto3AdminClient:
         """
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
-            res = s3.put_bucket_versioning(
+            res = await s3.put_bucket_versioning(
                 Bucket=bucket,
                 VersioningConfiguration={
                     'MFADelete': 'Disabled',

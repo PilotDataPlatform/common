@@ -21,6 +21,10 @@ from minio.helpers import url_replace
 from minio.signer import sign_v4_s3
 
 
+class PolicyDoesNotExist(Exception):
+    pass
+
+
 async def get_minio_policy_client(endpoint: str, access_key: str, secret_key: str, https: bool = False):
 
     mc = MinioPolicyClient(endpoint, access_key, secret_key, secure=https)
@@ -50,6 +54,7 @@ class MinioPolicyClient(Minio):
         Parameter:
             - policy_name(str): the policy name
             - content(str): the string content of policy
+            - region(str): the region of service (default is us-east-1)
 
         return:
             - None
@@ -59,33 +64,70 @@ class MinioPolicyClient(Minio):
         creds = self._provider.retrieve() if self._provider else None
 
         # use native BaseURL class to follow the pattern
-        url = self._base_url.build('PUT', region, query_params={'name': policy_name})
+        params = {'name': policy_name}
+        url = self._base_url.build('PUT', region, query_params=params)
         url = url_replace(url, path='/minio/admin/v3/add-canned-policy')
 
         headers = None
         headers, date = self._build_headers(url.netloc, headers, content, creds)
         # make the signiture of request
-        headers = sign_v4_s3(
-            'PUT',
-            url,
-            region,
-            headers,
-            creds,
-            hashlib.sha256(content.encode()).hexdigest(),
-            date,
-        )
+        content_hash = hashlib.sha256(content.encode()).hexdigest()
+        headers = sign_v4_s3('PUT', url, region, headers, creds, content_hash, date)
 
         # sending to minio server to create IAM policy
         str_endpoint = url.scheme + '://' + url.netloc
         async with httpx.AsyncClient() as client:
             response = await client.put(
-                str_endpoint + '/minio/admin/v3/add-canned-policy',
-                params={'name': policy_name},
+                str_endpoint + url.path,
+                params=params,
                 headers=headers,
                 data=content,
             )
 
             if response.status_code != 200:
-                raise Exception('Fail to create minio policy')
+                raise Exception('Fail to create minio policy:' + str(response.text))
 
-        return None
+        return 'success'
+
+    async def get_IAM_policy(self, policy_name: str, region: str = 'us-east-1'):
+        """
+        Summary:
+            The function will use get the IAM policy in minio server.
+
+        Parameter:
+            - policy_name(str): the policy name to get
+            - region(str): the region of service (default is us-east-1)
+
+        return:
+            - dict
+        """
+
+        # fetch the credential to generate headers
+        creds = self._provider.retrieve() if self._provider else None
+
+        # use native BaseURL class to follow the pattern
+        params = {'name': policy_name, 'v': '2'}
+        url = self._base_url.build('GET', region, query_params=params)
+        url = url_replace(url, path='/minio/admin/v3/info-canned-policy')
+
+        headers = None
+        headers, date = self._build_headers(url.netloc, headers, '', creds)
+        # make the signiture of request
+        content_hash = hashlib.sha256(''.encode()).hexdigest()
+        headers = sign_v4_s3('GET', url, region, headers, creds, content_hash, date)
+
+        # sending to minio server to get IAM policy
+        str_endpoint = url.scheme + '://' + url.netloc
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                str_endpoint + url.path,
+                params=params,
+                headers=headers,
+            )
+
+            if response.status_code == 404:
+                raise PolicyDoesNotExist('Policy %s does not exist' % policy_name)
+            elif response.status_code != 200:
+                raise Exception('Fail to get minio policy' + str(response.text))
+
+        return response.json()
