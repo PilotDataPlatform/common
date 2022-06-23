@@ -189,7 +189,7 @@ class Boto3Client:
         """
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
-            res = await s3.delete_object(Bucket=bucket, key=key)
+            res = await s3.delete_object(Bucket=bucket, Key=key)
 
         return res
 
