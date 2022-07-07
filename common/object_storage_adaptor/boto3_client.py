@@ -116,7 +116,9 @@ class Boto3Client:
                 )
 
                 if result.status_code == 400:
-                    raise TokenError(result.text)
+                    raise TokenError("Get temp token with %s error: %s"%(result.status_code, result.text))
+                elif result.status_code != 200:
+                    raise Exception("Get temp token with %s error: %s"%(result.status_code, result.text))
 
         except Exception as e:
             raise e
