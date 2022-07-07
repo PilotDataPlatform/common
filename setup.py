@@ -19,7 +19,8 @@ setuptools.setup(
         'aioredis>=2.0.0<3.0.0.',
         'aioboto3==9.6.0',
         'xmltodict==0.13.0',
-        'minio==7.1.8'
+        'minio==7.1.8',
+        'python-json-logger>=0.1.11<=2.0.2'
     ],
     include_package_data=True,
     package_data={
