@@ -23,7 +23,7 @@ from botocore.client import Config
 _SIGNATURE_VERSTION = 's3v4'
 
 
-class TokenExpired(Exception):
+class TokenError(Exception):
     pass
 
 
@@ -116,7 +116,7 @@ class Boto3Client:
                 )
 
                 if result.status_code == 400:
-                    raise TokenExpired('Token expired')
+                    raise TokenError(result.text)
 
         except Exception as e:
             raise e
@@ -284,7 +284,10 @@ class Boto3Client:
             )
 
         async with httpx.AsyncClient() as client:
-            res = await client.put(signed_url, data=content)
+            res = await client.put(signed_url, data=content, timeout=60)
+
+            if res.status_code != 200:
+                raise Exception("Fail to upload the chunck %s: %s"%(part_number, str(res.text)))
 
         etag = res.headers.get('ETag').replace("\"", '')
 
