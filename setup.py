@@ -7,8 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setuptools.setup(
     name='pilot-platform-common',
-    version='0.0.38',
-    version='0.0.37',
+    version='0.0.39',
     author='Indoc Research',
     author_email='etaylor@indocresearch.org',
     description='Generates entity ID and connects with Vault (secret engine) to retrieve credentials',
