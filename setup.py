@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name='pilot-platform-common',
-    version='0.0.36',
+    version='0.0.37',
     author='Indoc Research',
     author_email='etaylor@indocresearch.org',
     description='Generates entity ID and connects with Vault (secret engine) to retrieve credentials',
@@ -19,8 +19,7 @@ setuptools.setup(
         'aioredis>=2.0.0<3.0.0.',
         'aioboto3==9.6.0',
         'xmltodict==0.13.0',
-        'minio==7.1.8',
-        'python-json-logger>=0.1.11<=2.0.2'
+        'minio==7.1.8'
     ],
     include_package_data=True,
     package_data={
