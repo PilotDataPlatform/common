@@ -1,13 +1,14 @@
-import setuptools
-
 # read the contents of your README file
 from pathlib import Path
+
+import setuptools
+
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
+long_description = (this_directory / 'README.md').read_text()
 
 setuptools.setup(
     name='pilot-platform-common',
-    version='0.0.39',
+    version='0.0.40',
     author='Indoc Research',
     author_email='etaylor@indocresearch.org',
     description='Generates entity ID and connects with Vault (secret engine) to retrieve credentials',

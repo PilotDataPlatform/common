@@ -27,9 +27,11 @@ class TokenError(Exception):
     pass
 
 
-async def get_boto3_client(endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False):
+async def get_boto3_client(
+    endpoint: str, token: str = None, access_key: str = None, secret_key: str = None, https: bool = False
+):
 
-    mc = Boto3Client(endpoint, token, temp_credentials, https)
+    mc = Boto3Client(endpoint, token, access_key, secret_key, https)
     await mc.init_connection()
 
     return mc
@@ -46,19 +48,30 @@ class Boto3Client:
             - presigned-upload-url
             - part upload
             - combine parts on server side
+        The initialization will require either jwt token or access key +
+        secret key from object storage
     """
 
-    def __init__(self, endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False) -> None:
+    def __init__(
+        self, endpoint: str, token: str = None, access_key: str = None, secret_key: str = None, https: bool = False
+    ) -> None:
         """
         Parameter:
             - endpoint(string): the endpoint of minio(no http schema)
             - token(str): the user token from SSO
+            - access_key(str): the access key of object storage
+            - secret key(str): the secret key of object storage
             - https(bool): the bool to indicate if it is https connection
         """
 
         self.endpoint = ('https://' if https else 'http://') + endpoint
+
+        if token is None and access_key is None and secret_key is None:
+            raise Exception('Either token or credentials is necessary for client')
         self.token = token
-        self.temp_credentials = temp_credentials
+        self.access_key = access_key
+        self.secret_key = secret_key
+        self.session_token = None
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
@@ -75,17 +88,20 @@ class Boto3Client:
         # if we receive token by first time
         # ask minio to give the temperary credentials
         if self.token is not None:
-            self.temp_credentials = await self._get_sts(self.token)
+            temp_credentials = await self._get_sts(self.token)
+            self.access_key = temp_credentials.get('AccessKeyId')
+            self.secret_key = temp_credentials.get('SecretAccessKey')
+            self.session_token = temp_credentials.get('SessionToken')
 
         self._session = aioboto3.Session(
-            aws_access_key_id=self.temp_credentials.get('AccessKeyId'),
-            aws_secret_access_key=self.temp_credentials.get('SecretAccessKey'),
-            aws_session_token=self.temp_credentials.get('SessionToken'),
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+            aws_session_token=self.session_token,
         )
 
         return
 
-    async def _get_sts(self, access_token: str, duration: int = 86000) -> dict:
+    async def _get_sts(self, jwt_token: str, duration: int = 86000) -> dict:
         """
         Summary:
             The function will use the token given to minio and
@@ -93,9 +109,14 @@ class Boto3Client:
                 - AccessKeyId
                 - SecretAccessKey
                 - SessionToken
+            Note there is a special constrain for such temporary credentials.
+            Its expirey time cannot be longer than jwt_token. for futher info
+            check:
+                https://docs.min.io/minio/baremetal/security/openid-external-identity-management/AssumeRoleWithWebIdentity.html
+                Paremeter `DurationSeconds` has RFC 7519 4.1.4: Expiration Time Claim
 
         Parameter:
-            - access_token(str): The token get from SSO
+            - jwt_token(str): The token get from SSO
             - duration(int): how long the temporary credential
                 will expire
 
@@ -109,16 +130,16 @@ class Boto3Client:
                     self.endpoint,
                     params={
                         'Action': 'AssumeRoleWithWebIdentity',
-                        'WebIdentityToken': access_token.replace('Bearer ', ''),
+                        'WebIdentityToken': jwt_token.replace('Bearer ', ''),
                         'Version': '2011-06-15',
                         'DurationSeconds': duration,
                     },
                 )
 
                 if result.status_code == 400:
-                    raise TokenError("Get temp token with %s error: %s"%(result.status_code, result.text))
+                    raise TokenError('Get temp token with %s error: %s' % (result.status_code, result.text))
                 elif result.status_code != 200:
-                    raise Exception("Get temp token with %s error: %s"%(result.status_code, result.text))
+                    raise Exception('Get temp token with %s error: %s' % (result.status_code, result.text))
 
         except Exception as e:
             raise e
@@ -289,7 +310,7 @@ class Boto3Client:
             res = await client.put(signed_url, data=content, timeout=60)
 
             if res.status_code != 200:
-                raise Exception("Fail to upload the chunck %s: %s"%(part_number, str(res.text)))
+                raise Exception('Fail to upload the chunck %s: %s' % (part_number, str(res.text)))
 
         etag = res.headers.get('ETag').replace("\"", '')
 
