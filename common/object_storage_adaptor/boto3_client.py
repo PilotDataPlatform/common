@@ -13,12 +13,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
 import os
+from logging import DEBUG
+from logging import ERROR
 
 import aioboto3
 import httpx
 import xmltodict
 from botocore.client import Config
+
+from common.logger import LoggerFactory
 
 _SIGNATURE_VERSTION = 's3v4'
 
@@ -27,9 +32,11 @@ class TokenError(Exception):
     pass
 
 
-async def get_boto3_client(endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False):
+async def get_boto3_client(
+    endpoint: str, token: str = None, access_key: str = None, secret_key: str = None, https: bool = False
+):
 
-    mc = Boto3Client(endpoint, token, temp_credentials, https)
+    mc = Boto3Client(endpoint, token, access_key, secret_key, https)
     await mc.init_connection()
 
     return mc
@@ -46,22 +53,38 @@ class Boto3Client:
             - presigned-upload-url
             - part upload
             - combine parts on server side
+        The initialization will require either jwt token or access key +
+        secret key from object storage
     """
 
-    def __init__(self, endpoint: str, token: str = None, temp_credentials: dict = None, https: bool = False) -> None:
+    def __init__(
+        self, endpoint: str, token: str = None, access_key: str = None, secret_key: str = None, https: bool = False
+    ) -> None:
         """
         Parameter:
             - endpoint(string): the endpoint of minio(no http schema)
             - token(str): the user token from SSO
+            - access_key(str): the access key of object storage
+            - secret key(str): the secret key of object storage
             - https(bool): the bool to indicate if it is https connection
         """
 
         self.endpoint = ('https://' if https else 'http://') + endpoint
+
+        if token is None and access_key is None and secret_key is None:
+            raise Exception('Either token or credentials is necessary for client')
         self.token = token
-        self.temp_credentials = temp_credentials
+        self.access_key = access_key
+        self.secret_key = secret_key
+        self.session_token = None
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
+
+        # the flag to turn on class-wide logs
+        self.logger = LoggerFactory('Boto3Client').get_logger()
+        # initially only print out error info
+        self.logger.setLevel(ERROR)
 
     async def init_connection(self):
         """
@@ -71,21 +94,44 @@ class Boto3Client:
         return:
             - None
         """
+        self.logger.info('Initialize object storage connection')
 
         # if we receive token by first time
         # ask minio to give the temperary credentials
         if self.token is not None:
-            self.temp_credentials = await self._get_sts(self.token)
+            self.logger.info('Get temporary credentials')
+            temp_credentials = await self._get_sts(self.token)
+            self.logger.info('Temporary credentials: %s', json.dumps(temp_credentials))
+
+            self.access_key = temp_credentials.get('AccessKeyId')
+            self.secret_key = temp_credentials.get('SecretAccessKey')
+            self.session_token = temp_credentials.get('SessionToken')
 
         self._session = aioboto3.Session(
-            aws_access_key_id=self.temp_credentials.get('AccessKeyId'),
-            aws_secret_access_key=self.temp_credentials.get('SecretAccessKey'),
-            aws_session_token=self.temp_credentials.get('SessionToken'),
+            aws_access_key_id=self.access_key,
+            aws_secret_access_key=self.secret_key,
+            aws_session_token=self.session_token,
         )
 
         return
 
-    async def _get_sts(self, access_token: str, duration: int = 86000) -> dict:
+    async def debug_on(self):
+        """
+        Summary:
+            The funtion will switch the log level to debug
+        """
+        self.logger.setLevel(DEBUG)
+        return
+
+    async def debug_off(self):
+        """
+        Summary:
+            The funtion will switch the log level to ERROR
+        """
+        self.logger.setLevel(ERROR)
+        return
+
+    async def _get_sts(self, jwt_token: str, duration: int = 86000) -> dict:
         """
         Summary:
             The function will use the token given to minio and
@@ -93,34 +139,41 @@ class Boto3Client:
                 - AccessKeyId
                 - SecretAccessKey
                 - SessionToken
+            Note there is a special constrain for such temporary credentials.
+            Its expirey time cannot be longer than jwt_token. for futher info
+            check:
+                https://docs.min.io/minio/baremetal/security/openid-external-identity-management/AssumeRoleWithWebIdentity.html
+                Paremeter `DurationSeconds` has RFC 7519 4.1.4: Expiration Time Claim
 
         Parameter:
-            - access_token(str): The token get from SSO
+            - jwt_token(str): The token get from SSO
             - duration(int): how long the temporary credential
                 will expire
 
         return:
             - dict
         """
-
+        self.logger.info('Get sts from %s', self.endpoint)
         try:
             async with httpx.AsyncClient() as client:
                 result = await client.post(
                     self.endpoint,
                     params={
                         'Action': 'AssumeRoleWithWebIdentity',
-                        'WebIdentityToken': access_token.replace('Bearer ', ''),
+                        'WebIdentityToken': jwt_token.replace('Bearer ', ''),
                         'Version': '2011-06-15',
                         'DurationSeconds': duration,
                     },
                 )
 
                 if result.status_code == 400:
-                    raise TokenError("Get temp token with %s error: %s"%(result.status_code, result.text))
+                    raise TokenError('Get temp token with %s error: %s' % (result.status_code, result.text))
                 elif result.status_code != 200:
-                    raise Exception("Get temp token with %s error: %s"%(result.status_code, result.text))
+                    raise Exception('Get temp token with %s error: %s' % (result.status_code, result.text))
 
         except Exception as e:
+            error_msg = str(e)
+            self.logger.error('Error when getting sts token: %s', error_msg)
             raise e
 
         # TODO add the secret
@@ -146,10 +199,12 @@ class Boto3Client:
         return:
             - None
         """
+        self.logger.info('Downlaod object %s/%s to local path %s', bucket, key, local_path)
 
         # here create directory tree if not exist
         directory = os.path.dirname(local_path)
         if not os.path.exists(directory):
+            self.logger.info('Directory %s does not exist. Create the path', directory)
             os.makedirs(directory)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
@@ -170,6 +225,7 @@ class Boto3Client:
         return:
             - object meta
         """
+        self.logger.info('Copy object %s/%s to destination %s/%s', source_bucket, source_key, dest_bucket, dest_key)
 
         source_file = os.path.join(source_bucket, source_key)
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
@@ -189,6 +245,7 @@ class Boto3Client:
         return:
             - object meta: contains the version_id
         """
+        self.logger.info('Delete object %s/%s', bucket, key)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.delete_object(Bucket=bucket, Key=key)
@@ -207,6 +264,7 @@ class Boto3Client:
         return:
             - object meta: contains the version_id
         """
+        self.logger.info('Stat object %s/%s', bucket, key)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.get_object(Bucket=bucket, key=key)
@@ -227,6 +285,7 @@ class Boto3Client:
         return:
             - presigned url(str)
         """
+        self.logger.info('Get download presigned url %s/%s', bucket, key)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             presigned_url = await s3.generate_presigned_url(
@@ -235,7 +294,7 @@ class Boto3Client:
 
         return presigned_url
 
-    async def prepare_multipart_upload(self, bucket: str, keys: str) -> str:
+    async def prepare_multipart_upload(self, bucket: str, keys: list) -> list:
         """
         Summary:
             The function is the boto3 wrapup to generate a multipart upload presigned url.
@@ -253,12 +312,15 @@ class Boto3Client:
         return:
             - upload_id(list): list of upload id will be used in later two apis
         """
+        self.logger.info('Prepare multipart upload for bucket: %s, keys: %s', bucket, str(keys))
 
         upload_id_list = []
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             for key in keys:
                 res = await s3.create_multipart_upload(Bucket=bucket, Key=key)
                 upload_id_list.append(res.get('UploadId'))
+
+        self.logger.info('Result upload ids: %s', str(upload_id_list))
 
         return upload_id_list
 
@@ -278,6 +340,8 @@ class Boto3Client:
         return:
             - dict: will be collected and used in third step
         """
+        self.logger.info('Upload object %s/%s with upload id: %s', bucket, key, upload_id)
+        self.logger.info('Part number: %s with size: %s', part_number, len(content))
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             signed_url = await s3.generate_presigned_url(
@@ -286,10 +350,13 @@ class Boto3Client:
             )
 
         async with httpx.AsyncClient() as client:
+            self.logger.info('Send part to server')
             res = await client.put(signed_url, data=content, timeout=60)
 
             if res.status_code != 200:
-                raise Exception("Fail to upload the chunck %s: %s"%(part_number, str(res.text)))
+                error_msg = 'Fail to upload the chunck %s: %s' % (part_number, str(res.text))
+                self.logger.error(error_msg)
+                raise Exception(error_msg)
 
         etag = res.headers.get('ETag').replace("\"", '')
 
@@ -311,6 +378,8 @@ class Boto3Client:
         return:
             - dict
         """
+        self.logger.info('Combine chunks %s/%s with upload id: %s', bucket, key, upload_id)
+        self.logger.info('Number of chunks: %s', len(parts))
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.complete_multipart_upload(
