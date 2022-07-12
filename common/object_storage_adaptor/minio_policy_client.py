@@ -14,11 +14,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import hashlib
+from logging import DEBUG
+from logging import ERROR
 
 import httpx
 from minio import Minio
 from minio.helpers import url_replace
 from minio.signer import sign_v4_s3
+
+from common.logger import LoggerFactory
 
 
 class PolicyDoesNotExist(Exception):
@@ -44,6 +48,27 @@ class MinioPolicyClient(Minio):
         setup the logic by our own.
     """
 
+    # the flag to turn on class-wide logs
+    logger = LoggerFactory('MinioPolicyClient').get_logger()
+    # initially only print out error info
+    logger.setLevel(ERROR)
+
+    async def debug_on(self):
+        """
+        Summary:
+            The funtion will switch the log level to DEBUG
+        """
+        self.logger.setLevel(DEBUG)
+        return
+
+    async def debug_off(self):
+        """
+        Summary:
+            The funtion will switch the log level to ERROR
+        """
+        self.logger.setLevel(ERROR)
+        return
+
     async def create_IAM_policy(self, policy_name: str, content: str, region: str = 'us-east-1'):
         """
         Summary:
@@ -59,6 +84,8 @@ class MinioPolicyClient(Minio):
         return:
             - None
         """
+        self.logger.info('Create policy: %s', policy_name)
+        self.logger.info('Policy content: %s', content)
 
         # fetch the credential to generate headers
         creds = self._provider.retrieve() if self._provider else None
@@ -85,7 +112,9 @@ class MinioPolicyClient(Minio):
             )
 
             if response.status_code != 200:
-                raise Exception('Fail to create minio policy:' + str(response.text))
+                error_msg = 'Fail to create minio policy:' + str(response.text)
+                self.logger.error(error_msg)
+                raise Exception(error_msg)
 
         return 'success'
 
@@ -101,6 +130,7 @@ class MinioPolicyClient(Minio):
         return:
             - dict
         """
+        self.logger.info('Get policy: %s', policy_name)
 
         # fetch the credential to generate headers
         creds = self._provider.retrieve() if self._provider else None
@@ -125,9 +155,13 @@ class MinioPolicyClient(Minio):
                 headers=headers,
             )
 
-            if response.status_code == 404:
-                raise PolicyDoesNotExist('Policy %s does not exist' % policy_name)
-            elif response.status_code != 200:
-                raise Exception('Fail to get minio policy' + str(response.text))
+        if response.status_code == 404:
+            error_msg = 'Policy %s does not exist' % policy_name
+            self.logger.error(error_msg)
+            raise PolicyDoesNotExist(error_msg)
+        elif response.status_code != 200:
+            error_msg = 'Fail to get minio policy' + str(response.text)
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
 
         return response.json()

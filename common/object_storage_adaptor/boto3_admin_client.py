@@ -13,8 +13,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from logging import DEBUG
+from logging import ERROR
+
 import aioboto3
 from botocore.client import Config
+
+from common.logger import LoggerFactory
 
 _SIGNATURE_VERSTION = 's3v4'
 
@@ -53,7 +58,14 @@ class Boto3AdminClient:
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
 
+        # the flag to turn on class-wide logs
+        self.logger = LoggerFactory('Boto3AdminClient').get_logger()
+        # initially only print out error info
+        self.logger.setLevel(ERROR)
+
     async def init_connection(self):
+
+        self.logger.info('Initialize object storage connection')
 
         self._session = aioboto3.Session(aws_access_key_id=self.access_key, aws_secret_access_key=self.secret_key)
 
@@ -83,7 +95,23 @@ class Boto3AdminClient:
 
         return res
 
-    async def create_bucket_encryption(self, bucket: str, algorithm: str = "AES256") -> dict:
+    async def debug_on(self):
+        """
+        Summary:
+            The funtion will switch the log level to DEBUG
+        """
+        self.logger.setLevel(DEBUG)
+        return
+
+    async def debug_off(self):
+        """
+        Summary:
+            The funtion will switch the log level to ERROR
+        """
+        self.logger.setLevel(ERROR)
+        return
+
+    async def create_bucket_encryption(self, bucket: str, algorithm: str = 'AES256') -> dict:
         """
         Summary:
             The function will create the bucket encryption rule. The rule will using
@@ -98,6 +126,7 @@ class Boto3AdminClient:
         return:
             - dict
         """
+        self.logger.info('Create encryption for bucket: %s(Algorithm %s)', bucket, algorithm)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.put_bucket_encryption(
@@ -115,7 +144,7 @@ class Boto3AdminClient:
 
             return res
 
-    async def set_bucket_versioning(self, bucket: str, status: str = "Enabled") -> dict:
+    async def set_bucket_versioning(self, bucket: str, status: str = 'Enabled') -> dict:
         """
         Summary:
             The function will set the bucket versioning based on input.
@@ -127,6 +156,7 @@ class Boto3AdminClient:
         return:
             - dict
         """
+        self.logger.info('Set versioning for bucket: %s(Status %s)', bucket, status)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
             res = await s3.put_bucket_versioning(
