@@ -14,15 +14,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import hashlib
-from logging import DEBUG
-from logging import ERROR
 
 import httpx
 from minio import Minio
 from minio.helpers import url_replace
 from minio.signer import sign_v4_s3
 
-from common.logger import LoggerFactory
+from common.object_storage_adaptor.base_client import BaseClient
 
 
 class PolicyDoesNotExist(Exception):
@@ -47,27 +45,13 @@ class MinioPolicyClient(Minio):
         Keeping the binary in common package is not a good idea. Thus, We
         setup the logic by our own.
     """
+    client_name = 'MinioPolicyClient'
+    base_client = BaseClient(client_name)
 
     # the flag to turn on class-wide logs
-    logger = LoggerFactory('MinioPolicyClient').get_logger()
-    # initially only print out error info
-    logger.setLevel(ERROR)
-
-    async def debug_on(self):
-        """
-        Summary:
-            The funtion will switch the log level to DEBUG
-        """
-        self.logger.setLevel(DEBUG)
-        return
-
-    async def debug_off(self):
-        """
-        Summary:
-            The funtion will switch the log level to ERROR
-        """
-        self.logger.setLevel(ERROR)
-        return
+    logger = base_client.logger
+    debug_on = base_client.debug_on
+    debug_off = base_client.debug_off
 
     async def create_IAM_policy(self, policy_name: str, content: str, region: str = 'us-east-1'):
         """

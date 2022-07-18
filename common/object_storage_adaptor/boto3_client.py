@@ -15,8 +15,6 @@
 
 import json
 import os
-from logging import DEBUG
-from logging import ERROR
 from typing import List
 
 import aioboto3
@@ -24,7 +22,7 @@ import httpx
 import xmltodict
 from botocore.client import Config
 
-from common.logger import LoggerFactory
+from common.object_storage_adaptor.base_client import BaseClient
 
 _SIGNATURE_VERSTION = 's3v4'
 
@@ -43,7 +41,7 @@ async def get_boto3_client(
     return mc
 
 
-class Boto3Client:
+class Boto3Client(BaseClient):
     """
     Summary:
         The object client for minio operation. This class is based on
@@ -69,6 +67,8 @@ class Boto3Client:
             - secret key(str): the secret key of object storage
             - https(bool): the bool to indicate if it is https connection
         """
+        client_name = 'Boto3Client'
+        super().__init__(client_name)
 
         self.endpoint = ('https://' if https else 'http://') + endpoint
 
@@ -81,11 +81,6 @@ class Boto3Client:
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
-
-        # the flag to turn on class-wide logs
-        self.logger = LoggerFactory('Boto3Client').get_logger()
-        # initially only print out error info
-        self.logger.setLevel(ERROR)
 
     async def init_connection(self):
         """
@@ -114,22 +109,6 @@ class Boto3Client:
             aws_session_token=self.session_token,
         )
 
-        return
-
-    async def debug_on(self):
-        """
-        Summary:
-            The funtion will switch the log level to debug
-        """
-        self.logger.setLevel(DEBUG)
-        return
-
-    async def debug_off(self):
-        """
-        Summary:
-            The funtion will switch the log level to ERROR
-        """
-        self.logger.setLevel(ERROR)
         return
 
     async def _get_sts(self, jwt_token: str, duration: int = 86000) -> dict:

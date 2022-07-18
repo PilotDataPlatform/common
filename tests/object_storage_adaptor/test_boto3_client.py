@@ -1,9 +1,28 @@
+from logging import ERROR, DEBUG
+
 from unittest.mock import call
 from unittest.mock import patch
 
 from common.object_storage_adaptor.boto3_client import Boto3Client
 from common.object_storage_adaptor.boto3_client import get_boto3_client
 from tests.conftest import PROJECT_CREDENTIALS
+
+
+async def test_boto3_client_check_log_level_debug():
+    boto3_client = Boto3Client(endpoint='project', token='test')
+    assert boto3_client.logger.level == ERROR
+
+    await boto3_client.debug_on()
+    assert boto3_client.logger.level == DEBUG
+
+
+async def test_boto3_client_check_log_level_ERROR():
+    boto3_client = Boto3Client(endpoint='project', token='test')
+    await boto3_client.debug_on()
+    assert boto3_client.logger.level == DEBUG
+    
+    await boto3_client.debug_off()
+    assert boto3_client.logger.level == ERROR
 
 
 @patch('aioboto3.Session')

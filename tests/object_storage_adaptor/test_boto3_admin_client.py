@@ -1,9 +1,26 @@
+from logging import ERROR, DEBUG
+
 from unittest.mock import call
 from unittest.mock import patch
 
 from common.object_storage_adaptor.boto3_admin_client import Boto3AdminClient
 from common.object_storage_adaptor.boto3_admin_client import get_boto3_admin_client
 
+async def test_boto3_client_check_log_level_debug():
+    boto3_client = Boto3AdminClient(endpoint='project', access_key='access key', secret_key='secret key')
+    assert boto3_client.logger.level == ERROR
+
+    await boto3_client.debug_on()
+    assert boto3_client.logger.level == DEBUG
+
+
+async def test_boto3_client_check_log_level_ERROR():
+    boto3_client = Boto3AdminClient(endpoint='project', access_key='access key', secret_key='secret key')
+    await boto3_client.debug_on()
+    assert boto3_client.logger.level == DEBUG
+    
+    await boto3_client.debug_off()
+    assert boto3_client.logger.level == ERROR
 
 async def test_get_boto3_admin_client_returns_class_instance():
     admin_client = await get_boto3_admin_client('project', access_key='access key', secret_key='secret key')

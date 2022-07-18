@@ -1,5 +1,6 @@
 import asyncio
 from io import BytesIO
+import json
 from uuid import uuid4
 
 import httpx
@@ -87,6 +88,15 @@ def mock_post_by_token(httpx_mock):
 def mock_put_add_policy(httpx_mock):
     httpx_mock.add_response(
         method='PUT', url='https://project/minio/admin/v3/add-canned-policy?name=test+policy', status_code=200
+    )
+
+@pytest.fixture
+def mock_get_get_policy(httpx_mock):
+    httpx_mock.add_response(
+        method='GET',
+        url='https://project/minio/admin/v3/info-canned-policy?name=test_policy&v=2',
+        json={},
+        status_code=200,
     )
 
 
