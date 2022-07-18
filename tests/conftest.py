@@ -1,8 +1,11 @@
 import asyncio
+from io import BytesIO
 from uuid import uuid4
 
 import httpx
+from httpx import Response
 import pytest
+from urllib3 import HTTPResponse
 import pytest_asyncio
 from dicttoxml import dicttoxml
 from testcontainers.redis import RedisContainer

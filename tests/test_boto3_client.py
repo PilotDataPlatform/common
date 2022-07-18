@@ -1,7 +1,7 @@
 from unittest.mock import call
 from unittest.mock import patch
 
-from common.object_storage_adaptor.boto3_client import Boto3_Client
+from common.object_storage_adaptor.boto3_client import Boto3Client
 from common.object_storage_adaptor.boto3_client import get_boto3_client
 from tests.conftest import PROJECT_CREDENTIALS
 
@@ -10,7 +10,7 @@ from tests.conftest import PROJECT_CREDENTIALS
 async def test_boto3_client_init_connection_with_token_requests_credentials_creates_boto3_session(
     _session, mock_post_by_token
 ):
-    boto3_client = Boto3_Client(endpoint='project', token='test')
+    boto3_client = Boto3Client(endpoint='project', token='test')
     await boto3_client.init_connection()
 
     _session.assert_called_with(
@@ -24,22 +24,30 @@ async def test_boto3_client_init_connection_with_token_requests_credentials_crea
 
 @patch('aioboto3.Session')
 async def test_get_boto3_client(_session):
-    boto3_client = await get_boto3_client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
+    boto3_client = await get_boto3_client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
 
     # Asserting that we get a correct boto3 client class
-    assert isinstance(boto3_client, Boto3_Client)
+    assert isinstance(boto3_client, Boto3Client)
     _session.assert_called_with(
         aws_access_key_id=PROJECT_CREDENTIALS.get('AccessKeyId'),
         aws_secret_access_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
-        aws_session_token=PROJECT_CREDENTIALS.get('SessionToken'),
+        aws_session_token=None,
     )
 
 
 @patch('aioboto3.Session.client')
 async def test_boto3_client_downloads_the_file_from_s3(_client):
-    boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
     await boto3_client.init_connection()
-    args = ('test', '/test/path', '/home/test/path')
+    args = ('test', '/test/path', './')
     await boto3_client.download_object(*args)
 
     assert _client.call_count == 1
@@ -52,21 +60,29 @@ async def test_boto3_client_downloads_the_file_from_s3(_client):
 
 @patch('aioboto3.Session.client')
 async def test_boto3_client_copy_file_copies_the_file_from_s3(_client):
-    boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
     await boto3_client.init_connection()
-    await boto3_client.copy_object('test', '/test/path', '/test/path/new')
+    await boto3_client.copy_object('test', '/test/path', 'test', '/path/new')
 
     assert _client.call_count == 1
     _client.assert_has_calls(
         [
-            call().__aenter__().copy_object(Bucket='test', CopySource='/test/path', Key='/test/path/new'),
+            call().__aenter__().copy_object(Bucket='test', CopySource='/test/path', Key='/path/new'),
         ]
     )
 
 
 @patch('aioboto3.Session.client')
 async def test_boto3_client_download_presigned_url_gets_download_presigned_url(_client):
-    boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
     await boto3_client.init_connection()
     await boto3_client.get_download_presigned_url('test', '/test/path')
 
@@ -82,7 +98,11 @@ async def test_boto3_client_download_presigned_url_gets_download_presigned_url(_
 
 @patch('aioboto3.Session.client')
 async def test_boto3_client_prepare_multipart_upload_creates_multipart_upload(_client):
-    boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
     await boto3_client.init_connection()
     keys = ['/test/path', '/test/path2', '/test/path3']
     await boto3_client.prepare_multipart_upload('test', keys)
@@ -101,7 +121,11 @@ async def test_boto3_client_prepare_multipart_upload_creates_multipart_upload(_c
 
 @patch('aioboto3.Session.client')
 async def test_boto3_client_combine_chunks_combines_chunks(_client):
-    boto3_client = Boto3_Client(endpoint='project', temp_credentials=PROJECT_CREDENTIALS)
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
     await boto3_client.init_connection()
     await boto3_client.combine_chunks('test', '/test/path', 'test', ['part_dict1', 'part_dict2', 'part_dict3'])
 
