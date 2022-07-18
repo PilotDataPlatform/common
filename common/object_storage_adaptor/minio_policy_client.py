@@ -144,7 +144,7 @@ class MinioPolicyClient(Minio):
             self.logger.error(error_msg)
             raise PolicyDoesNotExist(error_msg)
         elif response.status_code != 200:
-            error_msg = 'Fail to get minio policy' + str(response.text)
+            error_msg = 'Fail to get minio policy:' + str(response.text)
             self.logger.error(error_msg)
             raise Exception(error_msg)
 
