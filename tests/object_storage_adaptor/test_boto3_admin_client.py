@@ -52,3 +52,52 @@ async def test_boto3_admin_client_creates_correct_bucket(_client):
             call().__aenter__().create_bucket(Bucket='test.bucket'),
         ]
     )
+
+
+@patch('aioboto3.Session.client')
+async def test_boto3_admin_client_create_bucket_encryption(_client):
+    admin_client = Boto3AdminClient('project', access_key='access key', secret_key='secret key')
+    await admin_client.init_connection()
+    bucket = 'test.bucket'
+    algo = 'AES256'
+    await admin_client.create_bucket_encryption(bucket, algo)
+
+    assert _client.call_count == 1
+    _client.assert_has_calls(
+        [
+            call().__aenter__().put_bucket_encryption(
+                Bucket=bucket,
+                ServerSideEncryptionConfiguration={
+                    'Rules': [
+                        {
+                            'ApplyServerSideEncryptionByDefault': {
+                                'SSEAlgorithm': algo,
+                            },
+                        },
+                    ]
+                },
+            ),
+        ]
+    )
+
+
+@patch('aioboto3.Session.client')
+async def test_boto3_admin_client_set_bucket_versioning(_client):
+    admin_client = Boto3AdminClient('project', access_key='access key', secret_key='secret key')
+    await admin_client.init_connection()
+    bucket = 'test.bucket'
+    status = 'Enabled'
+    await admin_client.set_bucket_versioning(bucket, status)
+
+    assert _client.call_count == 1
+    _client.assert_has_calls(
+        [
+            call().__aenter__().put_bucket_versioning(
+                Bucket=bucket,
+                VersioningConfiguration={
+                    'MFADelete': 'Disabled',
+                    'Status': status,
+                },
+            ),
+        ]
+    )

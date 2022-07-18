@@ -1,9 +1,11 @@
+import httpx
+from httpx import Response
 from logging import ERROR, DEBUG
 
 from unittest.mock import call
 from unittest.mock import patch
 
-from common.object_storage_adaptor.boto3_client import Boto3Client
+from common.object_storage_adaptor.boto3_client import Boto3Client, TokenError
 from common.object_storage_adaptor.boto3_client import get_boto3_client
 from tests.conftest import PROJECT_CREDENTIALS
 
@@ -25,6 +27,13 @@ async def test_boto3_client_check_log_level_ERROR():
     assert boto3_client.logger.level == ERROR
 
 
+async def test_boto3_client_init_connection_with_fail():
+    try:
+        _ = Boto3Client(endpoint='project')
+    except Exception as e:
+        assert str(e) == 'Either token or credentials is necessary for client'
+
+
 @patch('aioboto3.Session')
 async def test_boto3_client_init_connection_with_token_requests_credentials_creates_boto3_session(
     _session, mock_post_by_token
@@ -39,6 +48,44 @@ async def test_boto3_client_init_connection_with_token_requests_credentials_crea
     )
     # Asserting that boto3_client have a mocked boto3 session
     assert boto3_client._session == _session()
+
+
+async def test_boto3_client_init_connection_with_token_error(httpx_mock):
+    url = httpx.URL(
+        'http://project',
+        params={
+            'Action': 'AssumeRoleWithWebIdentity',
+            'WebIdentityToken': 'test',
+            'Version': '2011-06-15',
+            'DurationSeconds': 86000,
+        },
+    )
+    httpx_mock.add_response(method='POST', url=url, status_code=400)
+
+    try:
+        boto3_client = Boto3Client(endpoint='project', token='test')
+        await boto3_client.init_connection()
+    except TokenError as e:
+        assert str(e) == 'Get temp token with 400 error: '
+
+
+async def test_boto3_client_init_connection_with_500_error(httpx_mock):
+    url = httpx.URL(
+        'http://project',
+        params={
+            'Action': 'AssumeRoleWithWebIdentity',
+            'WebIdentityToken': 'test',
+            'Version': '2011-06-15',
+            'DurationSeconds': 86000,
+        },
+    )
+    httpx_mock.add_response(method='POST', url=url, status_code=500)
+
+    try:
+        boto3_client = Boto3Client(endpoint='project', token='test')
+        await boto3_client.init_connection()
+    except Exception as e:
+        assert str(e) == 'Get temp token with 500 error: '
 
 
 @patch('aioboto3.Session')
@@ -139,6 +186,53 @@ async def test_boto3_client_prepare_multipart_upload_creates_multipart_upload(_c
 
 
 @patch('aioboto3.Session.client')
+async def test_boto3_client_part_upload(_client, mocker):
+
+    fake_res = Response(status_code=200, headers={"eTag":"test"})
+
+    _ = mocker.patch("httpx.AsyncClient.put", return_value=fake_res)
+
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
+    await boto3_client.init_connection()
+    await boto3_client.part_upload('test', '/path', 'test_id', 1, 'test_content')
+
+    # We are still calling client only once
+    assert _client.call_count == 1
+    _client.assert_has_calls(
+        [
+            call().__aenter__().generate_presigned_url(
+                ClientMethod='upload_part',
+                Params={'Bucket': 'test', 'Key': '/path', 'UploadId': 'test_id', 'PartNumber': 1},
+            ),
+        ],
+        any_order=True,
+    )
+
+
+@patch('aioboto3.Session.client')
+async def test_boto3_client_part_upload_fail(_client, mocker):
+
+    fake_res = Response(status_code=500, headers={"eTag":"test"}, text="error")
+
+    _ = mocker.patch("httpx.AsyncClient.put", return_value=fake_res)
+
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
+    await boto3_client.init_connection()
+    try:
+        await boto3_client.part_upload('test', '/path', 'test_id', 1, 'test_content')
+    except Exception as e:
+        assert str(e) == 'Fail to upload the chunck 1: error'
+
+
+@patch('aioboto3.Session.client')
 async def test_boto3_client_combine_chunks_combines_chunks(_client):
     boto3_client = Boto3Client(
         endpoint='project',
@@ -158,6 +252,48 @@ async def test_boto3_client_combine_chunks_combines_chunks(_client):
                 Key='/test/path',
                 MultipartUpload={'Parts': ['part_dict1', 'part_dict2', 'part_dict3']},
                 UploadId='test',
+            )
+        ]
+    )
+
+
+@patch('aioboto3.Session.client')
+async def test_boto3_client_delete_object(_client):
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
+    await boto3_client.init_connection()
+    await boto3_client.delete_object('test', '/test/path')
+
+    assert _client.call_count == 1
+    _client.assert_has_calls(
+        [
+            call().__aenter__().delete_object(
+                Bucket='test',
+                Key='/test/path',
+            )
+        ]
+    )
+
+
+@patch('aioboto3.Session.client')
+async def test_boto3_client_stat_object(_client):
+    boto3_client = Boto3Client(
+        endpoint='project',
+        access_key=PROJECT_CREDENTIALS.get('AccessKeyId'),
+        secret_key=PROJECT_CREDENTIALS.get('SecretAccessKey'),
+    )
+    await boto3_client.init_connection()
+    await boto3_client.stat_object('test', '/test/path')
+
+    assert _client.call_count == 1
+    _client.assert_has_calls(
+        [
+            call().__aenter__().get_object(
+                Bucket='test',
+                Key='/test/path',
             )
         ]
     )
