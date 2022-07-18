@@ -1,8 +1,12 @@
 import asyncio
+from io import BytesIO
+import json
 from uuid import uuid4
 
 import httpx
+from httpx import Response
 import pytest
+from urllib3 import HTTPResponse
 import pytest_asyncio
 from dicttoxml import dicttoxml
 from testcontainers.redis import RedisContainer
@@ -78,13 +82,6 @@ def mock_post_by_token(httpx_mock):
         root=False,
     ).decode('utf-8')
     httpx_mock.add_response(method='POST', url=url, status_code=200, text=xml)
-
-
-@pytest.fixture
-def mock_put_add_policy(httpx_mock):
-    httpx_mock.add_response(
-        method='PUT', url='https://project/minio/admin/v3/add-canned-policy?name=test+policy', status_code=200
-    )
 
 
 @pytest.fixture(scope='session', autouse=True)

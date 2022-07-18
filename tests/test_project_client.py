@@ -1,8 +1,11 @@
 import pytest
 
 from common import ProjectClientSync as ProjectClient
-from common import ProjectException, ProjectNotFoundException
-from tests.conftest import PROJECT_DATA, PROJECT_ID, PROJECT_URL
+from common import ProjectException
+from common import ProjectNotFoundException
+from tests.conftest import PROJECT_DATA
+from tests.conftest import PROJECT_ID
+from tests.conftest import PROJECT_URL
 
 
 def test_get_by_code_200(redis, mock_get_by_code):

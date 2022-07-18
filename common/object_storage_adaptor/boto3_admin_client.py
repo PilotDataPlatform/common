@@ -16,18 +16,20 @@
 import aioboto3
 from botocore.client import Config
 
+from common.object_storage_adaptor.base_client import BaseClient
+
 _SIGNATURE_VERSTION = 's3v4'
 
 
 async def get_boto3_admin_client(endpoint: str, access_key: str, secret_key: str):
 
-    mc = Boto3_Admin_Client(endpoint, access_key, secret_key)
+    mc = Boto3AdminClient(endpoint, access_key, secret_key)
     await mc.init_connection()
 
     return mc
 
 
-class Boto3_Admin_Client:
+class Boto3AdminClient(BaseClient):
     """
     Summary:
         The object client for minio admin operation. The class is based on
@@ -44,6 +46,8 @@ class Boto3_Admin_Client:
             - secret_key(str): the secret key of minio
             - https(bool): the bool to indicate if it is https connection
         """
+        client_name = 'Boto3AdminClient'
+        super().__init__(client_name)
 
         http_prefix = 'https://' if https else 'http://'
         self.endpoint = http_prefix + endpoint
@@ -54,6 +58,8 @@ class Boto3_Admin_Client:
         self._session = None
 
     async def init_connection(self):
+
+        self.logger.info('Initialize object storage connection')
 
         self._session = aioboto3.Session(aws_access_key_id=self.access_key, aws_secret_access_key=self.secret_key)
 
@@ -72,7 +78,7 @@ class Boto3_Admin_Client:
                 see Amazon S3 Transfer Acceleration.
 
         Parameter:
-            - bucket(str): the policy name
+            - bucket(str): the unique bucket name
 
         return:
             - dict
@@ -82,3 +88,61 @@ class Boto3_Admin_Client:
             res = await s3.create_bucket(Bucket=bucket)
 
         return res
+
+    async def create_bucket_encryption(self, bucket: str, algorithm: str = 'AES256') -> dict:
+        """
+        Summary:
+            The function will create the bucket encryption rule. The rule will using
+            AES256 to make encrytion.
+
+        Parameter:
+            - bucket(str): the unique bucket name
+            - algorithm(str): the algorithm by default is AES256. please refer to boto3
+                documentation for other options:
+                https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.put_bucket_encryption
+
+        return:
+            - dict
+        """
+        self.logger.info('Create encryption for bucket: %s(Algorithm %s)', bucket, algorithm)
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.put_bucket_encryption(
+                Bucket=bucket,
+                ServerSideEncryptionConfiguration={
+                    'Rules': [
+                        {
+                            'ApplyServerSideEncryptionByDefault': {
+                                'SSEAlgorithm': algorithm,
+                            },
+                        },
+                    ]
+                },
+            )
+
+            return res
+
+    async def set_bucket_versioning(self, bucket: str, status: str = 'Enabled') -> dict:
+        """
+        Summary:
+            The function will set the bucket versioning based on input.
+
+        Parameter:
+            - bucket(str): the unique bucket name
+            - status(str): the status of versioning
+
+        return:
+            - dict
+        """
+        self.logger.info('Set versioning for bucket: %s(Status %s)', bucket, status)
+
+        async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
+            res = await s3.put_bucket_versioning(
+                Bucket=bucket,
+                VersioningConfiguration={
+                    'MFADelete': 'Disabled',
+                    'Status': status,
+                },
+            )
+
+            return res
