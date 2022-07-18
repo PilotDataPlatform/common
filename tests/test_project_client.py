@@ -22,6 +22,13 @@ def test_get_by_id_200(redis, mock_get_by_id):
     assert project.json()["name"] == PROJECT_DATA["name"]
 
 
+def test_get_by_id_bad_redis_200(redis, mock_get_by_id):
+    project_client = ProjectClient(PROJECT_URL, "redis://fake:1234")
+    project = project_client.get(id=PROJECT_ID)
+    assert project.name == PROJECT_DATA["name"]
+    assert project.json()["name"] == PROJECT_DATA["name"]
+
+
 def test_get_by_id_404(redis, httpx_mock):
     httpx_mock.add_response(
         method="GET",
