@@ -15,15 +15,14 @@
 
 import json
 import os
-from logging import DEBUG
-from logging import ERROR
+from typing import List
 
 import aioboto3
 import httpx
 import xmltodict
 from botocore.client import Config
 
-from common.logger import LoggerFactory
+from common.object_storage_adaptor.base_client import BaseClient
 
 _SIGNATURE_VERSTION = 's3v4'
 
@@ -42,7 +41,7 @@ async def get_boto3_client(
     return mc
 
 
-class Boto3Client:
+class Boto3Client(BaseClient):
     """
     Summary:
         The object client for minio operation. This class is based on
@@ -68,6 +67,8 @@ class Boto3Client:
             - secret key(str): the secret key of object storage
             - https(bool): the bool to indicate if it is https connection
         """
+        client_name = 'Boto3Client'
+        super().__init__(client_name)
 
         self.endpoint = ('https://' if https else 'http://') + endpoint
 
@@ -80,11 +81,6 @@ class Boto3Client:
 
         self._config = Config(signature_version=_SIGNATURE_VERSTION)
         self._session = None
-
-        # the flag to turn on class-wide logs
-        self.logger = LoggerFactory('Boto3Client').get_logger()
-        # initially only print out error info
-        self.logger.setLevel(ERROR)
 
     async def init_connection(self):
         """
@@ -113,22 +109,6 @@ class Boto3Client:
             aws_session_token=self.session_token,
         )
 
-        return
-
-    async def debug_on(self):
-        """
-        Summary:
-            The funtion will switch the log level to debug
-        """
-        self.logger.setLevel(DEBUG)
-        return
-
-    async def debug_off(self):
-        """
-        Summary:
-            The funtion will switch the log level to ERROR
-        """
-        self.logger.setLevel(ERROR)
         return
 
     async def _get_sts(self, jwt_token: str, duration: int = 86000) -> dict:
@@ -186,7 +166,7 @@ class Boto3Client:
 
         return sts_info
 
-    async def downlaod_object(self, bucket: str, key: str, local_path: str) -> None:
+    async def download_object(self, bucket: str, key: str, local_path: str) -> None:
         """
         Summary:
             The function is the boto3 wrapup to download the file from minio
@@ -267,7 +247,7 @@ class Boto3Client:
         self.logger.info('Stat object %s/%s', bucket, key)
 
         async with self._session.client('s3', endpoint_url=self.endpoint, config=self._config) as s3:
-            res = await s3.get_object(Bucket=bucket, key=key)
+            res = await s3.get_object(Bucket=bucket, Key=key)
 
         return res
 
@@ -294,7 +274,7 @@ class Boto3Client:
 
         return presigned_url
 
-    async def prepare_multipart_upload(self, bucket: str, keys: list) -> list:
+    async def prepare_multipart_upload(self, bucket: str, keys: List[str]) -> List[str]:
         """
         Summary:
             The function is the boto3 wrapup to generate a multipart upload presigned url.
