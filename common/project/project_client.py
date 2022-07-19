@@ -19,11 +19,14 @@ import json
 import aioredis
 import httpx
 
+from common import LoggerFactory
 from .project_exceptions import ProjectException
 from .project_exceptions import ProjectNotFoundException
 
 CACHE_PREFIX = "project_client-"
 CACHE_EXPIRY = 300
+
+logger = LoggerFactory("common_project_client").get_logger()
 
 
 class ProjectObject(object):
@@ -167,8 +170,11 @@ class ProjectClient(object):
             project_id = code
 
         project_key = CACHE_PREFIX + project_id
-        if self.enable_cache and await self.redis.exists(project_key):
-            return self.project_object(json.loads(await self.redis.get(project_key)), self)
+        try:
+            if self.enable_cache and await self.redis.exists(project_key):
+                return self.project_object(json.loads(await self.redis.get(project_key)), self)
+        except aioredis.exceptions.ConnectionError:
+            logger.error(f"Couldn't connect to redis, skipping cache: {self.redis}")
 
         async with httpx.AsyncClient() as client:
             response = await client.get(self.base_url + f"/v1/projects/{project_id}")
@@ -177,8 +183,11 @@ class ProjectClient(object):
         elif response.status_code != 200:
             raise ProjectException(status_code=response.status_code, error_msg=response.json())
 
-        if self.enable_cache:
-            await self.redis.setex(project_key, CACHE_EXPIRY, json.dumps(response.json()))
+        try:
+            if self.enable_cache and self.redis:
+                await self.redis.setex(project_key, CACHE_EXPIRY, json.dumps(response.json()))
+        except aioredis.exceptions.ConnectionError:
+            logger.error(f"Couldn't connect to redis, skipping cache: {self.redis}")
         return self.project_object(response.json(), self)
 
     async def create(self, code, name, description, image_url=None, tags=[], system_tags=[], is_discoverable=True):
